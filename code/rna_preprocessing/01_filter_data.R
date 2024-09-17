@@ -39,3 +39,64 @@ seurat@meta.data <- metadata
 
 
 ## add QC to metadata ---------------------------------------------------------
+seurat$mitoRatio <- PercentageFeatureSet(object = seurat, pattern = "^MT-", assay = "RNA") / 100
+seurat$riboRatio <- PercentageFeatureSet(object = seurat, 
+                                                pattern = "^RP[SL][[:digit:]]|^RPLP[[:digit:]]|^RPSA", 
+                                                assay = "RNA") / 100
+seurat$log10GenesPerUMI <- log10(seurat$nFeature_RNA) / log10(seurat$nCount_RNA)
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#                                     QC                                   ----
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+metadata <- seurat@meta.data
+metadata %>%
+  ggplot(aes(x = sample, fill = sample)) +
+  geom_bar() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
+  ggtitle("NCells")
+
+metadata %>%
+  ggplot(aes(color = sample, x = nFeature_RNA, fill = sample)) +
+  geom_density(alpha = 0.2) +
+  scale_x_log10() +
+  theme_classic() +
+  ylab("Cell density") +
+  geom_vline(xintercept = 800)
+
+metadata %>%
+  ggplot(aes(color = sample, x = nCount_RNA, fill = sample)) +
+  geom_density(alpha = 0.2) +
+  scale_x_log10() +
+  theme_classic() +
+  ylab("Cell density") +
+  geom_vline(xintercept = 1400)
+
+metadata %>%
+  ggplot(aes(color = sample, x = mitoRatio, fill = sample)) +
+  geom_density(alpha = 0.2) +
+  scale_x_log10() +
+  theme_classic() +
+  geom_vline(xintercept = 0.15)
+
+metadata %>%
+  ggplot(aes(x = sample, log10GenesPerUMI, fill = sample)) +
+  geom_violin() +
+  geom_boxplot(width = 0.1, fill = alpha("white", 0.7)) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.80)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
+  NoLegend()
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#                                  Filtering                               ----
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+seurat <- subset(seurat, nFeature_RNA > 800 & nCount_RNA > 1400 & mitoRatio < 0.15)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#                                  Save Data                               ----
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+qsave(seurat, "data/processed/filtered_seurat.qs")
