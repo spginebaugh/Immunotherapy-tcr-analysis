@@ -79,7 +79,7 @@ metadata %>%
   geom_density(alpha = 0.2) +
   scale_x_log10() +
   theme_classic() +
-  geom_vline(xintercept = 0.15)
+  geom_vline(xintercept = 0.1)
 
 metadata %>%
   ggplot(aes(x = sample, log10GenesPerUMI, fill = sample)) +
@@ -94,7 +94,11 @@ metadata %>%
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #                                  Filtering                               ----
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-seurat <- subset(seurat, nFeature_RNA > 800 & nCount_RNA > 1400 & mitoRatio < 0.15)
+seurat <- subset(seurat, nFeature_RNA > 800 & 
+                   nCount_RNA > 1400 & 
+                   mitoRatio < 0.1 &
+                   scDbl_class == "singlet" &
+                   doubletfind_class == "singlet")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #                                  Save Data                               ----
