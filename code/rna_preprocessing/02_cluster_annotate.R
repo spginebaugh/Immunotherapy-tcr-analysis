@@ -94,4 +94,9 @@ seurat$annotation_level1 <- plyr::revalue(seurat$RNA_snn_res.0.4,
 
 DimPlot(seurat, group.by = "annotation_level1", label = TRUE)
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#                                    Save                                  ----
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Idents(seurat) <- seurat$annotation_level1
+qsave(seurat, "data/processed/annotated_seurat.qs")
 
