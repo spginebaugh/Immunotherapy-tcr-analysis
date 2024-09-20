@@ -42,6 +42,10 @@ DimPlot(seurat, group.by = c("sample", "Phase"))
 FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", 
             features = c("nCount_RNA","nFeature_RNA","mitoRatio","log10GenesPerUMI"))
 
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#                                  Annotate                                ----
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ### broad celltype marker plotting -------------------------------------------
 DimPlot(seurat, group.by = c("RNA_snn_res.0.4"), label = TRUE)
 
@@ -55,32 +59,39 @@ manuscript_markers[["B_cell"]] <- c("MS4A1","FCER2","MEF2B")
 manuscript_markers[["ILC"]] <- c("CSF2","IL7R","GZMB")
 
 FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", 
-            features = manuscript_markers[["ILC"]])
+            features = manuscript_markers[[3]])
+FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", 
+            features = c("XCL1","XCL2","GNLY","NKG7"))
+FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", 
+            features = c("CD3E","CD3D","CD3G"))
+FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", 
+            features = c("PTPRC"))
+### add annotation ----------------------------------------------------------
+seurat$annotation_level1 <- plyr::revalue(seurat$RNA_snn_res.0.4, 
+                                    c('0' = "T_cell",
+                                      '1' = "T_cell",
+                                      '2' = "T_cell",
+                                      '3' = "T_cell",
+                                      '4' = "T_cell",
+                                      '5' = "T_cell",
+                                      '6' = "T_cell",
+                                      '7' = "Plasma",
+                                      '8' = "Plasma",
+                                      '9' = "Plasma",
+                                      '10' = "B_cell",
+                                      '11' = "T_cell",
+                                      '12' = "B_cell",
+                                      '13' = "Myeloid",
+                                      '14' = "T_cell",
+                                      '15' = "Mast", 
+                                      '16' = "T_cell",
+                                      '17' = "T_cell",
+                                      '18' = "ILC",
+                                      '19' = "B_cell",
+                                      '20' = "T_cell",
+                                      '21' = "Other",
+                                      '22' = "Other"))
 
-seurat$annotation_level1 <- revalue(seurat$SCT_snn_res.1, 
-                                    c('0' = "",
-                                      '1' = "",
-                                      '2' = "",
-                                      '3' = "",
-                                      '4' = "",
-                                      '5' = "",
-                                      '6' = "",
-                                      '7' = "",
-                                      '8' = "",
-                                      '9' = "",
-                                      '10' = "",
-                                      '11' = "",
-                                      '12' = "",
-                                      '13' = "",
-                                      '14' = "",
-                                      '15' = "", 
-                                      '16' = "",
-                                      '17' = "",
-                                      '18' = "",
-                                      '19' = "",
-                                      '20' = "",
-                                      '21' = "",
-                                      '22' = ""
-
+DimPlot(seurat, group.by = "annotation_level1", label = TRUE)
 
 
