@@ -11,7 +11,7 @@ library(stringr)
 set.seed(42555)
 
 library(scRepertoire)
-
+library(ggraph)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #                                Import data                               ----
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -47,19 +47,71 @@ sc_meta <- sc_meta[,c("barcode_contig","patient_group","treatment","age","sex","
 colnames(sc_meta)[1] <- "barcode"
 
 combined_tcr <- combineTCR(filt_contig)[["S1"]]
-combined_tcr <- left_join(combined_tcr, sc_meta, by = "barcode")
 combined_tcr$donor_id <- word(combined_tcr$barcode,2,2,"-")
+combined_tcr_merge <- left_join(combined_tcr, sc_meta, by = "barcode")
 
-split_tcr <- split(combined_tcr, f = combined_tcr$donor_id)
-
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#                        combine clones with scRNA obj                     ----
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-sce <- as.SingleCellExperiment(seurat)
-
+split_tcr <- split(combined_tcr_merge, f = combined_tcr_merge$donor_id)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #                         Basic Clonal Visualization                       ----
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-clonalQuant(combined_tcr_list, cloneCall = "strict", chain = "both", scale = TRUE)
+clonalQuant(split_tcr, cloneCall = "strict", chain = "both", scale = TRUE)
+clonalQuant(split_tcr, cloneCall = "strict", chain = "both", scale = TRUE, group.by = "patient_group")
+clonalQuant(split_tcr, cloneCall = "strict", chain = "both", scale = TRUE, group.by = "azimuth_celltype_1")
+
+clonalAbundance(split_tcr, cloneCall = "strict", scale = TRUE)
+clonalAbundance(split_tcr, cloneCall = "strict", scale = TRUE, group.by = "patient_group")
+clonalAbundance(split_tcr, cloneCall = "strict", scale = TRUE, group.by = "azimuth_celltype_1")
+
+clonalLength(split_tcr, cloneCall = "aa", chain = "both", scale = TRUE, group.by = "patient_group")
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#                        combine clones with scRNA obj                     ----
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+sc_merge <- sc_cd3
+colnames(sc_merge) <- sc_merge$barcode_contig
+# sc_merge <- combineExpression(split_tcr,
+#                               sc_merge,
+#                               cloneCall = "strict",
+#                               proportion = TRUE,
+#                               group.by = "donor_id")
+
+sc_merge <- combineExpression(split_tcr,
+                         sc_merge,
+                         cloneCall = "gene",
+                         proportion = FALSE,
+                         group.by = "donor_id",
+                         cloneSize = c(Single=1, Small=5, Medium=20, Large=100, Hyperexpanded=500))
+DimPlot(sc_merge, group.by = "cloneSize")
+
+clonalOverlay(sc_merge,
+              reduction = "umap", 
+              cutpoint = 1, 
+              bins = 10, 
+              facet.by = "patient_group") + 
+  guides(color = "none")
+
+clonalNetwork(sc_merge, 
+              reduction = "umap", 
+              group.by = "azimuth_celltype_3",
+              filter.clones = NULL,
+              filter.identity = "CD8 Naive_2",
+              cloneCall = "aa")
+
+
+clonalOccupy(sc_merge, 
+             x.axis = "azimuth_celltype_3")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
