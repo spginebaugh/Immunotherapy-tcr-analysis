@@ -160,12 +160,41 @@ cd8_subtype_markers <- c('KIR2DL4','TRDC','ANXA1','IL7R','GZMK','EOMES',
 DimPlot(cd8, group.by = c("RNA_snn_res.0.6"), label = TRUE)
 VlnPlot(cd8, features = cd8_subtype_markers, split.by = "RNA_snn_res.0.6", stack = TRUE, pt.size = 0)
 
+cd8$annotation_level3 <- plyr::revalue(cd8$RNA_snn_res.0.6, 
+                                    c('0' = "Trm_LP2",
+                                      '1' = "Trm_IEL",
+                                      '2' = "Trm_LP1",
+                                      '3' = "Trm_LP1",
+                                      '4' = "Cytotoxic_effector",
+                                      '5' = "Cytotoxic_effector",
+                                      '6' = "CM_Naive",
+                                      '7' = "Cytotoxic_effector",
+                                      '8' = "Cycling",
+                                      '9' = "Trm_LP1",
+                                      '10' = "MAIT",
+                                      '11' = "Cycling",
+                                      '12' = "Term_effector"))
+DimPlot(cd8, group.by = "annotation_level3", label = TRUE)
+qsave(cd8, "data/processed/annotated_cd8.qs")
 
 
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#                        add annotation to larger obj                      ----
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+metadata <- seurat@meta.data
+metadata$annotation_level2 <- NA
+metadata$annotation_level2[metadata$barcode %in% cd4$barcode] <- "CD4_Tcell"
+metadata$annotation_level2[metadata$barcode %in% cd8$barcode] <- "CD8_Tcell"
 
+cd_meta <- rbind(cd4@meta.data[,c("barcode","annotation_level3")],
+                 cd8@meta.data[,c("barcode","annotation_level3")])
 
+metadata <- left_join(metadata, cd_meta, by = "barcode")
+rownames(metadata) <- metadata$barcode
 
+seurat@meta.data <- metadata
+seurat <- seurat[,!is.na(seurat$annotation_level2)]
+DimPlot(seurat, group.by = c("annotation_level2","annotation_level3"))
 
-
-
+qsave(seurat, "data/processed/annotated_Tcell.qs")
