@@ -15,7 +15,7 @@ library(ggraph)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #                                Import data                               ----
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-seurat <- qread("data/processed/clustered_tcell.qs")
+seurat <- qread("data/processed/annotated_tcell.qs")
 seurat$donor_id <- word(seurat$sample,2,2,"_") %>% word(.,1,1,"-")
 barcode_stripped <- word(seurat$barcode,-1,-1,"_") %>% word(.,1,1,"-")
 seurat$barcode_contig <- paste0(barcode_stripped,"-",seurat$donor_id)
