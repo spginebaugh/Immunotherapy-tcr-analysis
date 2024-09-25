@@ -1,0 +1,86 @@
+---
+title: "Inflammatory Response from Cancer Immunotherapy"
+author: "Scott Ginebaugh"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.width = 7, fig.height = 7, cache = FALSE)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+```{r load_libraries, include = FALSE, message = FALSE, warning = FALSE}
+library(Seurat)
+library(qs)
+library(ggplot2)
+library(magrittr)
+library(dplyr)
+library(harmony)
+library(stringr)
+set.seed(42555)
+
+library(scRepertoire)
+library(ggraph)
+
+library(ggplot2)
+library(ggpmisc)
+library(ggprism)
+library(knitr)
+```
+
+```{r import_data, include = FALSE, message = FALSE, warning = FALSE}
+sc_all <- qread("data/processed/annotated_seurat.qs")
+seurat <- qread("data/processed/annotated_Tcell.qs")
+cd4 <- qread("data/processed/annotated_cd4.qs")
+cd8 <- qread("data/processed/annotated_cd8.qs")
+
+add_contig_barcodes <- function(seurat_obj){
+  seurat_obj$donor_id <- word(seurat_obj$sample,2,2,"_") %>% word(.,1,1,"-")
+  barcode_stripped <- word(seurat_obj$barcode,-1,-1,"_") %>% word(.,1,1,"-")
+  barcode_contig <- paste0(barcode_stripped,"-",seurat_obj$donor_id)
+  barcode_contig[seurat_obj$flow_cell == "CD45"] <- paste0(barcode_contig[seurat_obj$flow_cell == "CD45"],"_CD45")
+  seurat_obj$barcode_contig <- barcode_contig
+  colnames(seurat_obj) <- seurat_obj$barcode_contig
+  return(seurat_obj)
+}
+
+seurat <- add_contig_barcodes(seurat)
+cd4 <- add_contig_barcodes(cd4)
+cd8 <- add_contig_barcodes(cd8)
+
+
+filt_contig <- read.csv("data/GSE144469/GSE144469_TCR_filtered_contig_annotations_all.csv", row.names = "X")
+filt_contig <- filt_contig[filt_contig$barcode %in% seurat$barcode_contig,]
+
+sc_meta <- seurat@meta.data
+sc_meta <- sc_meta[,c("barcode_contig","patient_group","treatment","age","sex","malignancy",
+                      "recist_response","overal_surival_months_from_cpi_initiation",
+                      "diarrhea_grade_CTCAE","mayo_endoscopic_score_MES",
+                      "time_from_first_treatment_to_symptom_onset_days","infliximab_required_for_treatment",
+                      "azimuth_celltype_1","azimuth_celltype_2","azimuth_celltype_3",
+                      "annotation_level1","annotation_level2","annotation_level3")]
+colnames(sc_meta)[1] <- "barcode"
+
+combined_tcr <- combineTCR(filt_contig)[["S1"]]
+combined_tcr$donor_id <- word(combined_tcr$barcode,2,2,"-")
+combined_tcr_merge <- left_join(combined_tcr, sc_meta, by = "barcode")
+
+split_tcr <- split(combined_tcr_merge, f = combined_tcr_merge$donor_id)
+```
+
+# Introduction
+
+A growing field of interest in immunology and is the study of T cell subtype heterogeneity and T-cell receptor (TCR) diversity. This is of particular interest in immuno-oncology, where a deep understanding of T-cell and TCR diversity is essential to understanding the tumor microenvironment and, importantly, for developing [new cancer therapies](https://jhoonline.biomedcentral.com/articles/10.1186/s13045-021-01115-0).
+
+Recent advances in 5' single-cell sequencing, such as 10X Genomics [Chromium Immune Profiling](https://www.10xgenomics.com/products/single-cell-immune-profiling), enables simultaneous profiling of gene expression and TCR [V(D)J](https://en.wikipedia.org/wiki/V(D)J_recombination) sequences.
+
+Here, we reanalyze a mutliomic scRNA+scTCR dataset from [Luoma et al.](https://www.cell.com/cell/fulltext/S0092-8674(20)30688-7?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS0092867420306887%3Fshowall%3Dtrue) In this manuscript, they investigate immune cell behavior in the colon during CTLA-4 and PD-1/PD-L1 checkpoint inhibitor (CPI) treatment. This is of particular importance because 60% of patients treated with these checkpoint blockades experience severe treatment-limiting toxicities -- particularly in the gastrointestinal mucosa. 10-20% of patients treated with CTLA-4 checkpoint inhibitors experience severe, and potentially life-threatening, colon inflammation (aka colitis).
+
+# Results
+
+## Dataset Overview
+
+This dataset contains colon biopsies from n = 8 melanoma patients with colitis, n = 6 melanoma patients without colitis, and n = 8 healthy adults who underwent screening colonoscopies. Of the 6 melanoma patients without colitis, 3 had enteritis (inflammation of the small intestine) and 3 did not.
+
+Following biopsy, the colon tissue was enzymatically digested, FACS sorted into a CD45+ mononuclear population and a CD3+ T-cell population, and then sequenced with 10X Genomics 5' single-cell immune profiling.
+
+

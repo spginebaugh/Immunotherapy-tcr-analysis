@@ -15,35 +15,35 @@ library(ggraph)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #                                Import data                               ----
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-seurat <- qread("data/processed/annotated_tcell.qs")
-seurat$donor_id <- word(seurat$sample,2,2,"_") %>% word(.,1,1,"-")
-barcode_stripped <- word(seurat$barcode,-1,-1,"_") %>% word(.,1,1,"-")
-seurat$barcode_contig <- paste0(barcode_stripped,"-",seurat$donor_id)
+seurat <- qread("data/processed/annotated_Tcell.qs")
+cd4 <- qread("data/processed/annotated_cd4.qs")
+cd8 <- qread("data/processed/annotated_cd8.qs")
 
-# only CD3 filtered cells have TCR data
-sc_cd3 <- seurat[,seurat$flow_cell == "CD3" & seurat$azimuth_celltype_1 %in% c("CD4 T", "CD8 T")]
+add_contig_barcodes <- function(seurat_obj){
+  seurat_obj$donor_id <- word(seurat_obj$sample,2,2,"_") %>% word(.,1,1,"-")
+  barcode_stripped <- word(seurat_obj$barcode,-1,-1,"_") %>% word(.,1,1,"-")
+  barcode_contig <- paste0(barcode_stripped,"-",seurat_obj$donor_id)
+  barcode_contig[seurat_obj$flow_cell == "CD45"] <- paste0(barcode_contig[seurat_obj$flow_cell == "CD45"],"_CD45")
+  seurat_obj$barcode_contig <- barcode_contig
+  colnames(seurat_obj) <- seurat_obj$barcode_contig
+  return(seurat_obj)
+}
 
-
-# contig_files <- list.files("data/GSE144469/GSE144469_RAW/tcr_csvs/")
-# contig_names <- word(contig_files,1,1,"-")
-# 
-# contig_list <- list()
-# for (i in 1:length(contig_files)){
-#   contig_list[[contig_names[i]]] <- read.csv(paste0("data/GSE144469/GSE144469_RAW/tcr_csvs/",contig_files[i]))
-# }
-# all_contig <- do.call(rbind, contig_list)
-
+seurat <- add_contig_barcodes(seurat)
+cd4 <- add_contig_barcodes(cd4)
+cd8 <- add_contig_barcodes(cd8)
 
 
 filt_contig <- read.csv("data/GSE144469/GSE144469_TCR_filtered_contig_annotations_all.csv", row.names = "X")
-filt_contig <- filt_contig[filt_contig$barcode %in% sc_cd3$barcode_contig,]
+filt_contig <- filt_contig[filt_contig$barcode %in% seurat$barcode_contig,]
 
-sc_meta <- sc_cd3@meta.data
+sc_meta <- seurat@meta.data
 sc_meta <- sc_meta[,c("barcode_contig","patient_group","treatment","age","sex","malignancy",
                       "recist_response","overal_surival_months_from_cpi_initiation",
                       "diarrhea_grade_CTCAE","mayo_endoscopic_score_MES",
                       "time_from_first_treatment_to_symptom_onset_days","infliximab_required_for_treatment",
-                      "azimuth_celltype_1","azimuth_celltype_2","azimuth_celltype_3")]
+                      "azimuth_celltype_1","azimuth_celltype_2","azimuth_celltype_3",
+                      "annotation_level1","annotation_level2","annotation_level3")]
 colnames(sc_meta)[1] <- "barcode"
 
 combined_tcr <- combineTCR(filt_contig)[["S1"]]
@@ -68,20 +68,19 @@ clonalLength(split_tcr, cloneCall = "aa", chain = "both", scale = TRUE, group.by
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #                        combine clones with scRNA obj                     ----
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-sc_merge <- sc_cd3
-colnames(sc_merge) <- sc_merge$barcode_contig
+sc_merge <- seurat[,seurat$flow_cell == "CD3"]
 # sc_merge <- combineExpression(split_tcr,
 #                               sc_merge,
 #                               cloneCall = "strict",
 #                               proportion = TRUE,
 #                               group.by = "donor_id")
-
+clone_levels <- c(Single=1, Small=5, Medium=20, Large=100, Hyperexpanded=500)
 sc_merge <- combineExpression(split_tcr,
                          sc_merge,
                          cloneCall = "gene",
                          proportion = FALSE,
                          group.by = "donor_id",
-                         cloneSize = c(Single=1, Small=5, Medium=20, Large=100, Hyperexpanded=500))
+                         cloneSize = clone_levels)
 DimPlot(sc_merge, group.by = "cloneSize")
 
 clonalOverlay(sc_merge,
