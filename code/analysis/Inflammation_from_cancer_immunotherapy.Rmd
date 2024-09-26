@@ -43,6 +43,7 @@ add_contig_barcodes <- function(seurat_obj){
   return(seurat_obj)
 }
 
+sc_all <- add_contig_barcodes(sc_all)
 seurat <- add_contig_barcodes(seurat)
 cd4 <- add_contig_barcodes(cd4)
 cd8 <- add_contig_barcodes(cd8)
@@ -81,6 +82,59 @@ Here, we reanalyze a mutliomic scRNA+scTCR dataset from [Luoma et al.](https://w
 
 This dataset contains colon biopsies from n = 8 melanoma patients with colitis, n = 6 melanoma patients without colitis, and n = 8 healthy adults who underwent screening colonoscopies. Of the 6 melanoma patients without colitis, 3 had enteritis (inflammation of the small intestine) and 3 did not.
 
-Following biopsy, the colon tissue was enzymatically digested, FACS sorted into a CD45+ mononuclear population and a CD3+ T-cell population, and then sequenced with 10X Genomics 5' single-cell immune profiling.
+Following biopsy, the colon tissue was enzymatically digested, FACS sorted into a CD3+ T-cell population, and then sequenced with 10X Genomics 5' single-cell immune profiling. For 16 of the patients, a CD45+ mononuclear cell population was also sorted and sequenced.
+
+```{r allcell_umap_celltype, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+DimPlot(sc_all, group.by = c("annotation_level1", "patient_group"), label = TRUE, raster = TRUE)
+DimPlot(sc_all, group.by = c("flow_cell", "sex"), label = FALSE, raster = TRUE)
+```
+
+When looking only at the CD45+ separated cells, we see that colitis patients have a higher proportion of T-cells than non-colitis patients.
+
+```{r allcell_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+meta_45 <- sc_all@meta.data[sc_all@meta.data$flow_cell == "CD45", ]
+meta_45$donor_id <- factor(meta_45$donor_id, 
+                           levels = c("C1","C2","C3","C4","C5","C6",
+                                      "NC1","NC2","NC3","NC4","NC6",
+                                      "CT1","CT2","CT3","CT4","CT6"))
+ggplot(meta_45, aes(x = donor_id, fill = annotation_level1)) +
+  geom_bar(position = "fill") +
+  theme_prism()
+
+## TODO: add TCell proportion plot and stats
+
+```
+
+
+Next, we investigate the T-cells in greater detail. We see that the T-cells generally separate into CD8 and CD4 subtypes. However, it isn't perfect -- there are some clusters (e.g. cluster 10) which contain both CD4 & CD8 cells, and there are some clusters which contain neither CD4 or CD8 cells. 
+
+```{r T_cell_both_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+DimPlot(seurat, group.by = c("patient_group", "flow_cell","sex"), label = FALSE, raster = TRUE)
+DimPlot(seurat, group.by = c("RNA_snn_res.1"), label = TRUE, raster = TRUE)
+FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", features = c("CD4","CD8A","CD8B"))
+```
+
+To remedy this, we instead use [Azimuth](https://www.cell.com/cell/fulltext/S0092-8674(21)00583-3) to annotate the cell types. We found that this worked very well for the initial labeling of CD4/CD8/other celltypes, but did a poor job of capturing heterogeneity in sub-subtypes. So, we next separated the CD4 and CD8 T-cells based on the Azimuth level 1 annotation, and studied them separately.
+
+```{r Azimuth_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+# TODO: fix with all tcells
+DimPlot(seurat, group.by = c("azimuth_celltype_1","azimuth_celltype_2"), label = TRUE, raster = FALSE)
+```
+
+```{r Azimuth_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+ggplot(seurat@meta.data, aes(x = donor_id, fill = azimuth_celltype_1)) +
+  geom_bar(position = "fill") +
+  theme_prism()
+```
+
+
+
+
+
+
+
+
+
+
 
 
