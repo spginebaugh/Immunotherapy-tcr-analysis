@@ -194,8 +194,6 @@ metadata <- left_join(metadata, cd_meta, by = "barcode")
 rownames(metadata) <- metadata$barcode
 
 seurat@meta.data <- metadata
-# seurat <- seurat[,!is.na(seurat$annotation_level2)]
-# TODO: rerun this part without above code
 DimPlot(seurat, group.by = c("annotation_level2","annotation_level3"))
 
 qsave(seurat, "data/processed/annotated_Tcell.qs")
