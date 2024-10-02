@@ -19,6 +19,8 @@ seurat <- qread("data/processed/annotated_Tcell.qs")
 cd4 <- qread("data/processed/annotated_cd4.qs")
 cd8 <- qread("data/processed/annotated_cd8.qs")
 
+
+
 add_contig_barcodes <- function(seurat_obj){
   seurat_obj$donor_id <- word(seurat_obj$sample,2,2,"_") %>% word(.,1,1,"-")
   barcode_stripped <- word(seurat_obj$barcode,-1,-1,"_") %>% word(.,1,1,"-")
@@ -37,76 +39,33 @@ cd8 <- add_contig_barcodes(cd8)
 filt_contig <- read.csv("data/GSE144469/GSE144469_TCR_filtered_contig_annotations_all.csv", row.names = "X")
 filt_contig <- filt_contig[filt_contig$barcode %in% seurat$barcode_contig,]
 
-sc_meta <- seurat@meta.data
-sc_meta <- sc_meta[,c("barcode_contig","patient_group","treatment","age","sex","malignancy",
-                      "recist_response","overal_surival_months_from_cpi_initiation",
-                      "diarrhea_grade_CTCAE","mayo_endoscopic_score_MES",
-                      "time_from_first_treatment_to_symptom_onset_days","infliximab_required_for_treatment",
-                      "azimuth_celltype_1","azimuth_celltype_2","azimuth_celltype_3",
-                      "annotation_level1","annotation_level2","annotation_level3")]
-colnames(sc_meta)[1] <- "barcode"
+## read in additional contig annotations
+contig_path <- "data/GSE144469/GSE144469_RAW/tcr_csvs/"
+contig_files <- list.files(contig_path)
+contig_names <- contig_files %>% word(.,2,2,"_") %>% word(.,1,1,"-")
+contig_list <- list()
+for (i in 1:length(contig_files)){
+  contig_tmp <- read.csv(paste0(contig_path, contig_files[i]))
+  contig_tmp$barcode <- paste0(word(contig_tmp$barcode,1,1,"-"), "-", contig_names[i])
+  contig_tmp$contig_id <- paste0(contig_tmp$barcode, "_", word(contig_tmp$contig_id,2,3,"_"))
+  contig_list[[contig_names[i]]] <- contig_tmp
+}
+filt_contig_2 <- do.call(rbind, contig_list)
+filt_contig_2 <- filt_contig_2[filt_contig_2$barcode %in% seurat$barcode_contig,]
+filt_contig_2 <- filt_contig_2[!(filt_contig_2$contig_id %in% filt_contig$contig_id),]
+
+filt_contig <- rbind(filt_contig, filt_contig_2)
+rm(filt_contig_2)
+
 
 combined_tcr <- combineTCR(filt_contig)[["S1"]]
 combined_tcr$donor_id <- word(combined_tcr$barcode,2,2,"-")
-combined_tcr_merge <- left_join(combined_tcr, sc_meta, by = "barcode")
 
-split_tcr <- split(combined_tcr_merge, f = combined_tcr_merge$donor_id)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#                         Basic Clonal Visualization                       ----
+#                                  save tcr                                ----
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-clonalQuant(split_tcr, cloneCall = "strict", chain = "both", scale = TRUE)
-clonalQuant(split_tcr, cloneCall = "strict", chain = "both", scale = TRUE, group.by = "patient_group")
-clonalQuant(split_tcr, cloneCall = "strict", chain = "both", scale = TRUE, group.by = "azimuth_celltype_1")
-
-clonalAbundance(split_tcr, cloneCall = "strict", scale = TRUE)
-clonalAbundance(split_tcr, cloneCall = "strict", scale = TRUE, group.by = "patient_group")
-clonalAbundance(split_tcr, cloneCall = "strict", scale = TRUE, group.by = "azimuth_celltype_1")
-
-clonalLength(split_tcr, cloneCall = "aa", chain = "both", scale = TRUE, group.by = "patient_group")
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#                        combine clones with scRNA obj                     ----
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-sc_merge <- seurat[,seurat$flow_cell == "CD3"]
-# sc_merge <- combineExpression(split_tcr,
-#                               sc_merge,
-#                               cloneCall = "strict",
-#                               proportion = TRUE,
-#                               group.by = "donor_id")
-clone_levels <- c(Single=1, Small=5, Medium=20, Large=100, Hyperexpanded=500)
-sc_merge <- combineExpression(split_tcr,
-                         sc_merge,
-                         cloneCall = "gene",
-                         proportion = FALSE,
-                         group.by = "donor_id",
-                         cloneSize = clone_levels)
-DimPlot(sc_merge, group.by = "cloneSize")
-
-clonalOverlay(sc_merge,
-              reduction = "umap", 
-              cutpoint = 1, 
-              bins = 10, 
-              facet.by = "patient_group") + 
-  guides(color = "none")
-
-clonalNetwork(sc_merge, 
-              reduction = "umap", 
-              group.by = "azimuth_celltype_3",
-              filter.clones = NULL,
-              filter.identity = "CD8 Naive_2",
-              cloneCall = "aa")
-
-
-clonalOccupy(sc_merge, 
-             x.axis = "azimuth_celltype_3")
-
-
-
-
-
-
-
+write.csv(combined_tcr, "data/processed/combined_tcr.csv", row.names = FALSE)
 
 
 
