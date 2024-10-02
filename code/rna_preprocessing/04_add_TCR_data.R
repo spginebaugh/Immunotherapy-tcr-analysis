@@ -12,6 +12,8 @@ set.seed(42555)
 
 library(scRepertoire)
 library(ggraph)
+
+source("code/utils/TCR_utils.R")
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #                                Import data                               ----
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -19,22 +21,7 @@ seurat <- qread("data/processed/annotated_Tcell.qs")
 cd4 <- qread("data/processed/annotated_cd4.qs")
 cd8 <- qread("data/processed/annotated_cd8.qs")
 
-
-
-add_contig_barcodes <- function(seurat_obj){
-  seurat_obj$donor_id <- word(seurat_obj$sample,2,2,"_") %>% word(.,1,1,"-")
-  barcode_stripped <- word(seurat_obj$barcode,-1,-1,"_") %>% word(.,1,1,"-")
-  barcode_contig <- paste0(barcode_stripped,"-",seurat_obj$donor_id)
-  barcode_contig[seurat_obj$flow_cell == "CD45"] <- paste0(barcode_contig[seurat_obj$flow_cell == "CD45"],"_CD45")
-  seurat_obj$barcode_contig <- barcode_contig
-  colnames(seurat_obj) <- seurat_obj$barcode_contig
-  return(seurat_obj)
-}
-
 seurat <- add_contig_barcodes(seurat)
-cd4 <- add_contig_barcodes(cd4)
-cd8 <- add_contig_barcodes(cd8)
-
 
 filt_contig <- read.csv("data/GSE144469/GSE144469_TCR_filtered_contig_annotations_all.csv", row.names = "X")
 filt_contig <- filt_contig[filt_contig$barcode %in% seurat$barcode_contig,]
