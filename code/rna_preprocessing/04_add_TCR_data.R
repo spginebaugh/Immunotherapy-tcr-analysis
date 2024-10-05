@@ -18,8 +18,6 @@ source("code/utils/TCR_utils.R")
 #                                Import data                               ----
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 seurat <- qread("data/processed/annotated_Tcell.qs")
-cd4 <- qread("data/processed/annotated_cd4.qs")
-cd8 <- qread("data/processed/annotated_cd8.qs")
 
 seurat <- add_contig_barcodes(seurat)
 
