@@ -101,16 +101,17 @@ DimPlot(sc_all, group.by = c("flow_cell", "sex"), label = FALSE, raster = TRUE)
 
 When looking only at the CD45+ separated cells, we see that colitis patients have a higher proportion of T-cells than non-colitis patients.
 
-```{r allcell_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r cd45_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
 meta_45 <- sc_all@meta.data[sc_all@meta.data$flow_cell == "CD45", ]
 meta_45$donor_id <- factor(meta_45$donor_id, 
-                           levels = c("C1","C2","C3","C4","C5","C6",
+                           levels = c("CT1","CT2","CT3","CT4","CT6",
                                       "NC1","NC2","NC3","NC4","NC6",
-                                      "CT1","CT2","CT3","CT4","CT6"))
+                                      "C1","C2","C3","C4","C5","C6"
+                                      ), ordered = FALSE)
 
 axis_colors <- sapply(levels(meta_45$donor_id), function(x) {
-  if (grepl("^CT", x)) return(cpi_col)       # Check for CT first
-  else if (grepl("^C[0-9]", x)) return(ctr_col)  # Then check for C followed by number
+  if (grepl("^CT", x)) return(ctr_col)       # Check for CT first
+  else if (grepl("^C[0-9]", x)) return(cpi_col)  # Then check for C followed by number
   else if (grepl("^NC", x)) return(cpi_nc_col)    # Check for NC
 })
 
@@ -118,8 +119,9 @@ axis_colors <- sapply(levels(meta_45$donor_id), function(x) {
 ggplot(meta_45, aes(x = donor_id, fill = annotation_level1)) +
   geom_bar(position = "fill") +
   theme_prism() +
-    theme(axis.text.x = element_text(color = axis_colors))
-
+  theme(axis.text.x = element_text(color = axis_colors)) +
+  ylab("Cell Proportion in CD45+ Separated Cells") +
+  xlab("Patient ID")
 ## TODO: add TCell proportion plot and stats
 
 ```
