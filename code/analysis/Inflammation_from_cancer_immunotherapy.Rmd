@@ -16,6 +16,8 @@ library(magrittr)
 library(dplyr)
 library(harmony)
 library(stringr)
+library(tidyverse)
+library(tibble)
 set.seed(42555)
 
 library(scRepertoire)
@@ -25,6 +27,8 @@ library(ggplot2)
 library(ggpmisc)
 library(ggprism)
 library(knitr)
+
+source("code/utils/TCR_utils.R")
 ```
 
 ```{r import_data, include = FALSE, message = FALSE, warning = FALSE}
@@ -33,24 +37,18 @@ seurat <- qread("data/processed/annotated_Tcell.qs")
 cd4 <- qread("data/processed/annotated_cd4.qs")
 cd8 <- qread("data/processed/annotated_cd8.qs")
 
-add_contig_barcodes <- function(seurat_obj){
-  seurat_obj$donor_id <- word(seurat_obj$sample,2,2,"_") %>% word(.,1,1,"-")
-  barcode_stripped <- word(seurat_obj$barcode,-1,-1,"_") %>% word(.,1,1,"-")
-  barcode_contig <- paste0(barcode_stripped,"-",seurat_obj$donor_id)
-  barcode_contig[seurat_obj$flow_cell == "CD45"] <- paste0(barcode_contig[seurat_obj$flow_cell == "CD45"],"_CD45")
-  seurat_obj$barcode_contig <- barcode_contig
-  colnames(seurat_obj) <- seurat_obj$barcode_contig
-  return(seurat_obj)
-}
 
 sc_all <- add_contig_barcodes(sc_all)
 seurat <- add_contig_barcodes(seurat)
 cd4 <- add_contig_barcodes(cd4)
 cd8 <- add_contig_barcodes(cd8)
 
+sc_all$patient_group %<>% factor(levels = c("Control","CPI no colitis","CPI colitis"))
+seurat$patient_group %<>% factor(levels = c("Control","CPI no colitis","CPI colitis"))
+cd4$patient_group %<>% factor(levels = c("Control","CPI no colitis","CPI colitis"))
+cd8$patient_group %<>% factor(levels = c("Control","CPI no colitis","CPI colitis"))
 
-filt_contig <- read.csv("data/GSE144469/GSE144469_TCR_filtered_contig_annotations_all.csv", row.names = "X")
-filt_contig <- filt_contig[filt_contig$barcode %in% seurat$barcode_contig,]
+combined_tcr <- read.csv("data/processed/combined_tcr.csv")
 
 sc_meta <- seurat@meta.data
 sc_meta <- sc_meta[,c("barcode_contig","patient_group","treatment","age","sex","malignancy",
@@ -61,11 +59,18 @@ sc_meta <- sc_meta[,c("barcode_contig","patient_group","treatment","age","sex","
                       "annotation_level1","annotation_level2","annotation_level3")]
 colnames(sc_meta)[1] <- "barcode"
 
-combined_tcr <- combineTCR(filt_contig)[["S1"]]
-combined_tcr$donor_id <- word(combined_tcr$barcode,2,2,"-")
 combined_tcr_merge <- left_join(combined_tcr, sc_meta, by = "barcode")
 
-split_tcr <- split(combined_tcr_merge, f = combined_tcr_merge$donor_id)
+split_tcr <- split(combined_tcr, f = combined_tcr_merge$donor_id)
+
+# set colors for plotting
+ctr_col = "#00bfa0"
+cpi_nc_col = "#ffa300"
+cpi_col = "#9b19f5"
+
+colors <- c("Control" = ctr_col, 
+            "CPI no colitis" = cpi_nc_col, 
+            "CPI colitis" = cpi_col) 
 ```
 
 # Introduction
@@ -74,7 +79,7 @@ A growing field of interest in immunology and is the study of T cell subtype het
 
 Recent advances in 5' single-cell sequencing, such as 10X Genomics [Chromium Immune Profiling](https://www.10xgenomics.com/products/single-cell-immune-profiling), enables simultaneous profiling of gene expression and TCR [V(D)J](https://en.wikipedia.org/wiki/V(D)J_recombination) sequences.
 
-Here, we reanalyze a mutliomic scRNA+scTCR dataset from [Luoma et al.](https://www.cell.com/cell/fulltext/S0092-8674(20)30688-7?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS0092867420306887%3Fshowall%3Dtrue) In this manuscript, they investigate immune cell behavior in the colon during CTLA-4 and PD-1/PD-L1 checkpoint inhibitor (CPI) treatment. This is of particular importance because 60% of patients treated with these checkpoint blockades experience severe treatment-limiting toxicities -- particularly in the gastrointestinal mucosa. 10-20% of patients treated with CTLA-4 checkpoint inhibitors experience severe, and potentially life-threatening, colon inflammation (aka colitis).
+Here, we reanalyze a mutliomic scRNA+scTCR dataset from [Luoma et al.](https://www.cell.com/cell/fulltext/S0092-8674(20)30688-7?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS0092867420306887%3Fshowall%3Dtrue) In this manuscript, they investigate immune cell behavior in the colon during CTLA-4 and PD-1/PD-L1 checkpoint inhibitor (CPI) treatment. This is of particular importance because 60% of patients treated with these checkpoint blockades experience severe treatment-limiting toxicities -- particularly in the gastrointestinal mucosa. 10-20% of patients treated with CTLA-4 checkpoint inhibitors experience severe, and potentially life-threatening, colon inflammation (a.k.a. colitis).
 
 # Results
 
@@ -84,10 +89,15 @@ This dataset contains colon biopsies from n = 8 melanoma patients with colitis, 
 
 Following biopsy, the colon tissue was enzymatically digested, FACS sorted into a CD3+ T-cell population, and then sequenced with 10X Genomics 5' single-cell immune profiling. For 16 of the patients, a CD45+ mononuclear cell population was also sorted and sequenced.
 
-```{r allcell_umap_celltype, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
-DimPlot(sc_all, group.by = c("annotation_level1", "patient_group"), label = TRUE, raster = TRUE)
+```{r allcell_umap_celltype_1, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 5,}
+DimPlot(sc_all, group.by = c("annotation_level1"), label = TRUE, raster = TRUE) + ggtitle("Cell Type")
+DimPlot(sc_all, group.by = c("patient_group"), label = TRUE, raster = TRUE, cols = colors) + ggtitle("Patient Group")
+
+```
+```{r allcell_umap_celltype_2, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
 DimPlot(sc_all, group.by = c("flow_cell", "sex"), label = FALSE, raster = TRUE)
 ```
+
 
 When looking only at the CD45+ separated cells, we see that colitis patients have a higher proportion of T-cells than non-colitis patients.
 
@@ -97,35 +107,147 @@ meta_45$donor_id <- factor(meta_45$donor_id,
                            levels = c("C1","C2","C3","C4","C5","C6",
                                       "NC1","NC2","NC3","NC4","NC6",
                                       "CT1","CT2","CT3","CT4","CT6"))
+
+axis_colors <- sapply(levels(meta_45$donor_id), function(x) {
+  if (grepl("^CT", x)) return(cpi_col)       # Check for CT first
+  else if (grepl("^C[0-9]", x)) return(ctr_col)  # Then check for C followed by number
+  else if (grepl("^NC", x)) return(cpi_nc_col)    # Check for NC
+})
+
+
 ggplot(meta_45, aes(x = donor_id, fill = annotation_level1)) +
   geom_bar(position = "fill") +
-  theme_prism()
+  theme_prism() +
+    theme(axis.text.x = element_text(color = axis_colors))
 
 ## TODO: add TCell proportion plot and stats
 
 ```
 
+## Tcell overview
 
-Next, we investigate the T-cells in greater detail. We see that the T-cells generally separate into CD8 and CD4 subtypes. However, it isn't perfect -- there are some clusters (e.g. cluster 10) which contain both CD4 & CD8 cells, and there are some clusters which contain neither CD4 or CD8 cells. 
+Next, we investigate the T-cells in greater detail. We see that the T-cells generally separate into CD8 and CD4 subtypes. However, it isn't perfect -- there are some clusters (e.g. cluster 10) which contain both CD4 & CD8 cells, and there are some clusters which contain neither CD4 or CD8 cells (e.g. cluster 18), or contain only very low expression of a marker gene (e.g. cluster 13). 
 
 ```{r T_cell_both_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
 DimPlot(seurat, group.by = c("patient_group", "flow_cell","sex"), label = FALSE, raster = TRUE)
 DimPlot(seurat, group.by = c("RNA_snn_res.1"), label = TRUE, raster = TRUE)
 FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", features = c("CD4","CD8A","CD8B"))
+FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", features = c("CD3E","CD3D","CD3G"))
 ```
 
-To remedy this, we instead use [Azimuth](https://www.cell.com/cell/fulltext/S0092-8674(21)00583-3) to annotate the cell types. We found that this worked very well for the initial labeling of CD4/CD8/other celltypes, but did a poor job of capturing heterogeneity in sub-subtypes. So, we next separated the CD4 and CD8 T-cells based on the Azimuth level 1 annotation, and studied them separately.
+To remedy this, we instead use [Azimuth](https://www.cell.com/cell/fulltext/S0092-8674(21)00583-3) to annotate the cell types. We found that this worked very well for the initial labeling of CD4/CD8/other T-cell subtypes, but did a poor job of capturing heterogeneity in sub-subtypes. So, we next separated the CD4 and CD8 T-cells based on the Azimuth level 1 annotation, and studied them separately.
 
 ```{r Azimuth_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
-# TODO: fix with all tcells
-DimPlot(seurat, group.by = c("azimuth_celltype_1","azimuth_celltype_2"), label = TRUE, raster = FALSE)
+seurat$annotation_level2[is.na(seurat$annotation_level2)] <- "Other"
+DimPlot(seurat, group.by = c("azimuth_celltype_1","azimuth_celltype_2","annotation_level2"), label = FALSE, raster = FALSE)
 ```
 
 ```{r Azimuth_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
-ggplot(seurat@meta.data, aes(x = donor_id, fill = azimuth_celltype_1)) +
+ggplot(seurat@meta.data, aes(x = donor_id, fill = annotation_level2)) +
   geom_bar(position = "fill") +
   theme_prism()
 ```
+
+## CD4 Tcell overview
+
+First, we analyze the CD8+ Tcells. We see distinct clusters based on known celltype markers, and we see a large difference in cell-type proportions of CPI colitis patients compared to both controls and CPI without colitis. In particular, we see a large decrease in the proportion of Tissue Resident Memory cells (Trm) and a large increase in the proportion of Th1 effector cells, cycling cells, and regulatory T-cells
+
+```{r CD8_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+DimPlot(cd8, group.by = c("patient_group","annotation_level3"), label = TRUE)
+```
+
+```{r CD8_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+ggplot(cd8@meta.data, aes(x = donor_id, fill = annotation_level3)) +
+  geom_bar(position = "fill") +
+  theme_prism()
+
+cd8_prop <- prop.table(table(cd8$patient_group, cd8$annotation_level3), margin = 1) %>%
+  data.frame()
+cd8_prop$Var1 <- factor(cd8_prop$Var1, levels = c("Control","CPI no colitis","CPI colitis"))
+ggplot(cd8_prop, aes(x = Var2, y = Freq, fill = Var1)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  theme_prism()
+```
+
+```{r CD8_tcr_1, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+cd8_tcr <- combined_tcr_merge[combined_tcr_merge$annotation_level2 %in% "CD8_Tcell",]
+cd8_split_tcr <- split(cd8_tcr, f = combined_tcr_merge$donor_id)
+cd8_merge <- cd8[,cd8$flow_cell == "CD3"]
+cd8_merge <- combineExpression(split_tcr,
+                              cd8_merge,
+                              cloneCall = "gene",
+                              proportion = TRUE,
+                              group.by = "donor_id")
+Idents(cd8_merge) <- cd8_merge$annotation_level3
+
+DimPlot(cd8_merge, group.by = "cloneSize")
+clonalOverlay(cd8_merge, reduction = "umap", cutpoint = 1, bins = 10, facet.by = "patient_group")
+clonalNetwork(cd8_merge, reduction = "umap", group.by = "annotation_level3",
+              filter.clones = NULL, filter.identity = "Cytotoxic_effector", cloneCall = "strict")
+```
+
+```{r CD8_tcr_2, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+clonalOverlay(cd8_merge, 
+              reduction = "umap", 
+              cutpoint = 1, 
+              bins = 10, 
+              facet.by = "patient_group") + 
+              guides(color = "none")
+```
+
+```{r CD8_tcr_3, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+cd8_merge2 <- cd8_merge
+
+cd8_merge2$cdrs3_pat <- paste(cd8_merge2$CTaa, cd8_merge2$sample, sep = "_")
+
+freqs <- (table(cd8_merge2$cdrs3_pat)/sum(!is.na(cd8_merge2$cdrs3_pat))) %>% data.frame()
+sorted <- freqs$Freq
+names(sorted) <- freqs$Var1
+sorted <- sort(sorted, decreasing = TRUE)
+largest_clones <- head(sorted, 6)
+
+cells <- which(cd8_merge2$cdrs3_pat %in% names(largest_clones))
+DimPlot(cd8_merge, reduction = "umap", cells.highlight = cells) +NoLegend()
+
+
+
+```
+
+
+```{r CD8_tcr_4, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+combined.TCR <- list()
+donor_vec <- unique(combined_tcr$donor_id)
+donor_vec <- donor_vec[order(donor_vec)]
+
+for (i in donor_vec){
+  combined.TCR[[i]] <- combined_tcr[combined_tcr$donor_id == i,]
+}
+
+combined.TCR <- cd8_split_tcr
+clonalQuant(combined.TCR, 
+            cloneCall="strict", 
+            chain = "both", 
+            scale = TRUE)
+
+clonalAbundance(combined.TCR, 
+                cloneCall = "gene", 
+                scale = FALSE)
+
+clonalAbundance(combined.TCR, cloneCall = "gene", scale = TRUE)
+
+
+clonalLength(combined.TCR) 
+```
+
+
+
+
+
+
+
+
+
+
 
 
 
