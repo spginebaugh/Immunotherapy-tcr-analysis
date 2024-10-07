@@ -31,22 +31,30 @@ library(knitr)
 source("code/utils/TCR_utils.R")
 ```
 
+```{r functions, include = FALSE, message = FALSE, warning = FALSE}
+prep_data <- function(seurat_obj){
+  seurat_obj <- add_contig_barcodes(seurat_obj)
+  seurat_obj$patient_group <- factor(seurat_obj$patient_group,
+                                     levels = c("Control","CPI no colitis","CPI colitis"),
+                                     ordered = FALSE)
+  seurat_obj$donor_id <- factor(seurat_obj$donor_id, 
+                           levels = c("CT1","CT2","CT3","CT4","CT6",
+                                      "NC1","NC2","NC3","NC4","NC6",
+                                      "C1","C2","C3","C4","C5","C6"), 
+                          ordered = FALSE)
+}
+```
+
 ```{r import_data, include = FALSE, message = FALSE, warning = FALSE}
 sc_all <- qread("data/processed/annotated_seurat.qs")
 seurat <- qread("data/processed/annotated_Tcell.qs")
 cd4 <- qread("data/processed/annotated_cd4.qs")
 cd8 <- qread("data/processed/annotated_cd8.qs")
 
-
-sc_all <- add_contig_barcodes(sc_all)
-seurat <- add_contig_barcodes(seurat)
-cd4 <- add_contig_barcodes(cd4)
-cd8 <- add_contig_barcodes(cd8)
-
-sc_all$patient_group %<>% factor(levels = c("Control","CPI no colitis","CPI colitis"))
-seurat$patient_group %<>% factor(levels = c("Control","CPI no colitis","CPI colitis"))
-cd4$patient_group %<>% factor(levels = c("Control","CPI no colitis","CPI colitis"))
-cd8$patient_group %<>% factor(levels = c("Control","CPI no colitis","CPI colitis"))
+sc_all <- prep_data(sc_all)
+seurat <- prep_data(seurat)
+cd4 <- prep_data(cd4)
+cd8 <- prep_data(cd8)
 
 combined_tcr <- read.csv("data/processed/combined_tcr.csv")
 
@@ -103,11 +111,7 @@ When looking only at the CD45+ separated cells, we see that colitis patients hav
 
 ```{r cd45_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
 meta_45 <- sc_all@meta.data[sc_all@meta.data$flow_cell == "CD45", ]
-meta_45$donor_id <- factor(meta_45$donor_id, 
-                           levels = c("CT1","CT2","CT3","CT4","CT6",
-                                      "NC1","NC2","NC3","NC4","NC6",
-                                      "C1","C2","C3","C4","C5","C6"
-                                      ), ordered = FALSE)
+
 
 axis_colors <- sapply(levels(meta_45$donor_id), function(x) {
   if (grepl("^CT", x)) return(ctr_col)       # Check for CT first
@@ -125,6 +129,9 @@ ggplot(meta_45, aes(x = donor_id, fill = annotation_level1)) +
 ## TODO: add TCell proportion plot and stats
 
 ```
+
+Additionally, we can see that there are large differences between treatment groups within different celltypes.
+
 
 ## Tcell overview
 
