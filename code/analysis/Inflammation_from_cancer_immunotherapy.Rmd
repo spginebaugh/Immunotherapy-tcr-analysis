@@ -26,6 +26,7 @@ library(ggraph)
 library(ggplot2)
 library(ggpmisc)
 library(ggprism)
+library(ggrepel)
 library(knitr)
 
 source("code/utils/TCR_utils.R")
@@ -55,6 +56,22 @@ get_donor_colors <- function(meta_data){
       else if (grepl("^NC", x)) return(cpi_nc_col)    
     })
     return(axis_colors)
+}
+
+colitis_pseudobulk <- function(seurat_obj){
+  pb_dat <- AggregateExpression(seurat_obj, assay = "RNA", return.seurat = TRUE, group.by = "donor_id")
+  pb_dat$patient_group <- sapply(pb_dat$donor_id, function(x) {
+        if (grepl("^CT", x)) return("Control")     
+        else if (grepl("^C[0-9]", x)) return("CPI colitis")  
+        else if (grepl("^NC", x)) return("CPI no colitis")    
+      })
+  Idents(pb_dat) <- pb_dat$patient_group
+  colitis_deg <- FindMarkers(pb_dat, 
+                            ident.1 = "CPI colitis", 
+                            ident.2 = c("CPI no colitis", "Control"), 
+                            test.use = "DESeq2")
+  colitis_deg$gene_name <- rownames(colitis_deg)
+  return(colitis_deg)
 }
 ```
 
@@ -110,20 +127,20 @@ This dataset contains colon biopsies from n = 8 melanoma patients with colitis, 
 
 Following biopsy, the colon tissue was enzymatically digested, FACS sorted into a CD3+ T-cell population, and then sequenced with 10X Genomics 5' single-cell immune profiling. For 16 of the patients, a CD45+ mononuclear cell population was also sorted and sequenced.
 
-```{r allcell_umap_celltype_1, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 5,}
+```{r allcell_umap_celltype_1, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 5}
 DimPlot(sc_all, group.by = c("annotation_level1"), label = TRUE, raster = TRUE) + ggtitle("Cell Type")
 DimPlot(sc_all, group.by = c("patient_group"), label = TRUE, raster = TRUE, cols = colors) + ggtitle("Patient Group")
 
 ```
 
-```{r allcell_umap_celltype_2, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r allcell_umap_celltype_2, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 DimPlot(sc_all, group.by = c("flow_cell", "sex"), label = FALSE, raster = TRUE)
 ```
 
 
 When looking only at the CD45+ separated cells, we see that colitis patients have a higher proportion of T-cells than non-colitis patients.
 
-```{r cd45_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r cd45_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 meta_45 <- sc_all@meta.data[sc_all@meta.data$flow_cell == "CD45", ]
 meta_45$donor_id <- factor(meta_45$donor_id)
 
@@ -141,7 +158,7 @@ ggplot(meta_45, aes(x = donor_id, fill = annotation_level1)) +
 
 Additionally, we can see that there are large differences between treatment groups within different celltypes.
 
-```{r cluster_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r cluster_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 DimPlot(sc_all[,sc_all@meta.data$flow_cell == "CD45"], group.by = "RNA_snn_res.0.4", split.by = "patient_group") +
   ggtitle("")
 
@@ -153,7 +170,7 @@ DimPlot(sc_all[,sc_all@meta.data$flow_cell == "CD45"], group.by = "RNA_snn_res.0
 
 Next, we investigate the T-cells in greater detail. We see that the T-cells generally separate into CD8 and CD4 subtypes. However, it isn't perfect -- there are some clusters (e.g. cluster 10) which contain both CD4 & CD8 cells, and there are some clusters which contain neither CD4 or CD8 cells (e.g. cluster 18), or contain only very low expression of a marker gene (e.g. cluster 13). 
 
-```{r T_cell_both_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r T_cell_both_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 DimPlot(seurat, group.by = c("patient_group", "flow_cell","sex"), label = FALSE, raster = TRUE, cols = colors)
 DimPlot(seurat, group.by = c("RNA_snn_res.1"), label = TRUE, raster = TRUE)
 FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", features = c("CD4","CD8A","CD8B"))
@@ -162,12 +179,12 @@ FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", features = c("CD3E","
 
 To remedy this, we instead use [Azimuth](https://www.cell.com/cell/fulltext/S0092-8674(21)00583-3) to annotate the cell types. We found that this worked very well for the initial labeling of CD4/CD8/other T-cell subtypes, but did a poor job of capturing heterogeneity in sub-subtypes. So, we next separated the CD4 and CD8 T-cells based on the Azimuth level 1 annotation, and studied them separately.
 
-```{r Azimuth_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r Azimuth_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 seurat$annotation_level2[is.na(seurat$annotation_level2)] <- "Other"
 DimPlot(seurat, group.by = c("azimuth_celltype_1","azimuth_celltype_2","annotation_level2"), label = FALSE, raster = FALSE)
 ```
 
-```{r Azimuth_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r Azimuth_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 axis_colors <- get_donor_colors(seurat@meta.data)
 ggplot(seurat@meta.data, aes(x = donor_id, fill = annotation_level2)) +
   geom_bar(position = "fill") +
@@ -179,14 +196,14 @@ ggplot(seurat@meta.data, aes(x = donor_id, fill = annotation_level2)) +
 
 First, we analyze the CD8+ Tcells. We see distinct clusters based on known celltype markers, and we see a large difference in cell-type proportions of CPI colitis patients compared to both controls and CPI without colitis. In particular, we see a large increase in the cycling and cytotoxic effector cells in CPI colitis, and a loss of Trm IEL and Trm LP1 cells.
 
-```{r CD8_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 5, fig.height = 5,}
+```{r CD8_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 5, fig.height = 5}
 DimPlot(cd8, group.by = c("patient_group"), label = TRUE, cols = colors) +
   ggtitle("Patient Group")
 DimPlot(cd8, group.by = c("annotation_level3"), label = TRUE) +
   ggtitle("CD8+ T-cell sub-clustering")
 ```
 
-```{r CD8_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r CD8_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 axis_colors <- get_donor_colors(cd8@meta.data)
 ggplot(cd8@meta.data, aes(x = donor_id, fill = annotation_level3)) +
   geom_bar(position = "fill") +
@@ -209,13 +226,13 @@ ggplot(cd8_prop, aes(x = Var2, y = Freq, fill = Var1)) +
 
 Next, we analyze the CD4+ T-cells. We see distinct clusters based on known celltype markers, and we see a large difference in cell-type proportions of CPI colitis patients compared to both controls and CPI without colitis. In particular, we see a notable decrease in the proportion of Tissue Resident Memory cells (Trm) and a large increase in the proportion of Th1 effector cells, cycling cells, and regulatory T-cells
 
-```{r CD4_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 5, fig.height = 5,}
+```{r CD4_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 5, fig.height = 5}
 DimPlot(cd4, group.by = c("patient_group"), label = TRUE, cols = colors) +
   ggtitle("Patient Group")
 DimPlot(cd4, group.by = c("annotation_level3"), label = TRUE) +
   ggtitle("CD4+ T-cell sub-clustering")
 ```
-```{r CD4_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r CD4_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 axis_colors <- get_donor_colors(cd4@meta.data)
 ggplot(cd4@meta.data, aes(x = donor_id, fill = annotation_level3)) +
   geom_bar(position = "fill") +
@@ -236,34 +253,76 @@ ggplot(cd4_prop, aes(x = Var2, y = Freq, fill = Var1)) +
 ```
 ## T-cell checkpoint gene expression
 
-```{r CD8_checkpoint_expr, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+We next investigated the expression of immune checkpoint genes and inhibitory receptors in T-cell subclusters. We see that there is an increased expression of checkpoint-related genes in both CD8 and CD4 T-cells. In a pseudobulk comparison of colitis vs non-colitis + control samples, we see that CTLA4, HAVCR2, LAG3, and CD38 are significantly upregulated in colitis CD8+ T-cells, but only HAVCR2 and CD38 are upregulated in colitis CD4+ T-cells.
+
+```{r CD8_checkpoint_expr, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 # having a metadata column named CTLA4 causes errors when trying to plot CTLA4 gene expression
 cd8_plot <- cd8
 cd8_plot$CTLA4 <- NULL
-
-checkpoint_genes <- c("CTLA4","PDCD1","HAVCR2","LAG3","TIGIT","CD38")
-VlnPlot(cd8_plot, features = checkpoint_genes, pt.size = 0, 
-        group.by = "annotation_level3", split.by = "patient_group",
-        stack = TRUE, flip = TRUE, cols = colors)
-
 
 cd4_plot <- cd4
 cd4_plot$CTLA4 <- NULL
 
 checkpoint_genes <- c("CTLA4","PDCD1","HAVCR2","LAG3","TIGIT","CD38")
+
+VlnPlot(cd8_plot, features = checkpoint_genes, pt.size = 0, 
+        group.by = "patient_group",  cols = colors, adjust = 2)
+
+VlnPlot(cd4_plot, features = checkpoint_genes, pt.size = 0, 
+        group.by = "patient_group",  cols = colors, adjust = 2)
+
+# VlnPlot(cd8_plot, features = checkpoint_genes, pt.size = 0, 
+#         group.by = "annotation_level3")
+# 
+# VlnPlot(cd4_plot, features = checkpoint_genes, pt.size = 0, 
+#         group.by = "annotation_level3")
+
+
+VlnPlot(cd8_plot, features = checkpoint_genes, pt.size = 0, 
+        group.by = "annotation_level3", split.by = "patient_group",
+        stack = TRUE, flip = TRUE, cols = colors)
+
 VlnPlot(cd4_plot, features = checkpoint_genes, pt.size = 0, 
         group.by = "annotation_level3", split.by = "patient_group",
         stack = TRUE, flip = TRUE, cols = colors)
 
+FeaturePlot(cd8_plot, min.cutoff = "q1", max.cutoff = "q99", features = checkpoint_genes)
+FeaturePlot(cd4_plot, min.cutoff = "q1", max.cutoff = "q99", features = checkpoint_genes)
 
 ```
 
+
+```{r pseudobulk_prep, include = FALSE, message = FALSE, warning = FALSE}
+cd8_pb <- colitis_pseudobulk(cd8)
+cd4_pb <- colitis_pseudobulk(cd4)
+
+cd8_pb[checkpoint_genes,]
+cd4_pb[checkpoint_genes,]
+
+```
+
+```{r pseudobulk_comparison, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
+de_merge <- inner_join(cd4_pb, cd8_pb, by = "gene_name", suffix = c(".CD4",".CD8"))
+de_merge <- de_merge[!is.na(de_merge$p_val_adj.CD4) & !is.na(de_merge$p_val_adj.CD8),]
+
+ggplot(de_merge, aes(x = avg_log2FC.CD4, y = avg_log2FC.CD8)) +
+  geom_point() +
+  theme_prism() +
+  geom_text_repel(data = subset(de_merge,
+                         avg_log2FC.CD4 > 2 |
+                           avg_log2FC.CD4 < 0.5 |
+                           avg_log2FC.CD8 > 2 |
+                           avg_log2FC.CD8 < -1.2),
+                  mapping = aes(x = avg_log2FC.CD4, y = avg_log2FC.CD8, label = gene_name))
+
+
+```
 
 ## TCR analysis TODO: figures 4 and S5
 
 ### CD8+ TCR analysis
 
-```{r CD8_tcr_1, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r CD8_tcr_1, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 cd8_tcr <- combined_tcr_merge[combined_tcr_merge$annotation_level2 %in% "CD8_Tcell",]
 cd8_split_tcr <- split(cd8_tcr, f = combined_tcr_merge$donor_id)
 cd8_merge <- cd8[,cd8$flow_cell == "CD3"]
@@ -280,7 +339,7 @@ clonalNetwork(cd8_merge, reduction = "umap", group.by = "annotation_level3",
               filter.clones = NULL, filter.identity = "Cytotoxic_effector", cloneCall = "strict")
 ```
 
-```{r CD8_tcr_2, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r CD8_tcr_2, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 clonalOverlay(cd8_merge, 
               reduction = "umap", 
               cutpoint = 1, 
@@ -289,7 +348,7 @@ clonalOverlay(cd8_merge,
               guides(color = "none")
 ```
 
-```{r CD8_tcr_3, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r CD8_tcr_3, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 cd8_merge2 <- cd8_merge
 
 cd8_merge2$cdrs3_pat <- paste(cd8_merge2$CTaa, cd8_merge2$sample, sep = "_")
@@ -308,7 +367,7 @@ DimPlot(cd8_merge, reduction = "umap", cells.highlight = cells) +NoLegend()
 ```
 
 
-```{r CD8_tcr_4, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r CD8_tcr_4, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 combined.TCR <- list()
 donor_vec <- unique(combined_tcr$donor_id)
 donor_vec <- donor_vec[order(donor_vec)]
@@ -334,7 +393,7 @@ clonalAbundance(combined.TCR, cloneCall = "gene", scale = TRUE)
 ```
 
 ### CD4+ TCR analysis
-```{r CD4_tcr_1, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r CD4_tcr_1, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 cd4_tcr <- combined_tcr_merge[combined_tcr_merge$annotation_level2 %in% "CD4_Tcell",]
 cd4_split_tcr <- split(cd4_tcr, f = combined_tcr_merge$donor_id)
 cd4_merge <- cd4[,cd4$flow_cell == "CD3"]
@@ -351,7 +410,7 @@ clonalNetwork(cd4_merge, reduction = "umap", group.by = "annotation_level3",
               filter.clones = NULL, filter.identity = "Th1_effector", cloneCall = "strict")
 ```
 
-```{r cd4_tcr_2, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r cd4_tcr_2, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 clonalOverlay(cd4_merge, 
               reduction = "umap", 
               cutpoint = 1, 
@@ -360,7 +419,7 @@ clonalOverlay(cd4_merge,
               guides(color = "none")
 ```
 
-```{r cd4_tcr_3, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r cd4_tcr_3, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 cd4_merge2 <- cd4_merge
 
 cd4_merge2$cdrs3_pat <- paste(cd4_merge2$CTaa, cd4_merge2$sample, sep = "_")
@@ -379,7 +438,7 @@ DimPlot(cd4_merge, reduction = "umap", cells.highlight = cells) +NoLegend()
 ```
 
 
-```{r cd4_tcr_4, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+```{r cd4_tcr_4, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
 combined.TCR <- list()
 donor_vec <- unique(combined_tcr$donor_id)
 donor_vec <- donor_vec[order(donor_vec)]
