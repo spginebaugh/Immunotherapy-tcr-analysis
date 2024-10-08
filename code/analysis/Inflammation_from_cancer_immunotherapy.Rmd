@@ -136,7 +136,6 @@ ggplot(meta_45, aes(x = donor_id, fill = annotation_level1)) +
   theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1)) +
   ylab("Cell Proportion in CD45+ Separated Cells") +
   xlab("Patient ID")
-## TODO: add TCell proportion plot and stats
 
 ```
 
@@ -148,12 +147,14 @@ DimPlot(sc_all[,sc_all@meta.data$flow_cell == "CD45"], group.by = "RNA_snn_res.0
 
 ```
 
-## Tcell overview
+## T-cell subclustering
+
+### T-cell overview
 
 Next, we investigate the T-cells in greater detail. We see that the T-cells generally separate into CD8 and CD4 subtypes. However, it isn't perfect -- there are some clusters (e.g. cluster 10) which contain both CD4 & CD8 cells, and there are some clusters which contain neither CD4 or CD8 cells (e.g. cluster 18), or contain only very low expression of a marker gene (e.g. cluster 13). 
 
 ```{r T_cell_both_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
-DimPlot(seurat, group.by = c("patient_group", "flow_cell","sex"), label = FALSE, raster = TRUE)
+DimPlot(seurat, group.by = c("patient_group", "flow_cell","sex"), label = FALSE, raster = TRUE, cols = colors)
 DimPlot(seurat, group.by = c("RNA_snn_res.1"), label = TRUE, raster = TRUE)
 FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", features = c("CD4","CD8A","CD8B"))
 FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", features = c("CD3E","CD3D","CD3G"))
@@ -174,7 +175,7 @@ ggplot(seurat@meta.data, aes(x = donor_id, fill = annotation_level2)) +
   theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1))
 ```
 
-## CD8+ T-cell overview
+### CD8+ T-cell subclustering
 
 First, we analyze the CD8+ Tcells. We see distinct clusters based on known celltype markers, and we see a large difference in cell-type proportions of CPI colitis patients compared to both controls and CPI without colitis. In particular, we see a large increase in the cycling and cytotoxic effector cells in CPI colitis, and a loss of Trm IEL and Trm LP1 cells.
 
@@ -204,7 +205,7 @@ ggplot(cd8_prop, aes(x = Var2, y = Freq, fill = Var1)) +
   xlab("CD8 cell subtype")
 ```
 
-## CD4+ T-cell overview
+### CD4+ T-cell overview
 
 Next, we analyze the CD4+ T-cells. We see distinct clusters based on known celltype markers, and we see a large difference in cell-type proportions of CPI colitis patients compared to both controls and CPI without colitis. In particular, we see a notable decrease in the proportion of Tissue Resident Memory cells (Trm) and a large increase in the proportion of Th1 effector cells, cycling cells, and regulatory T-cells
 
@@ -219,7 +220,8 @@ axis_colors <- get_donor_colors(cd4@meta.data)
 ggplot(cd4@meta.data, aes(x = donor_id, fill = annotation_level3)) +
   geom_bar(position = "fill") +
   theme_prism() +
-  theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1))
+  theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1)) +
+  ylab("Cell Proportions")
 
 cd4_prop <- prop.table(table(cd4$patient_group, cd4$annotation_level3), margin = 1) %>%
   data.frame()
@@ -229,9 +231,37 @@ ggplot(cd4_prop, aes(x = Var2, y = Freq, fill = Var1)) +
   theme_prism() +
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
   scale_fill_manual(values = colors) +
-  ylab("Cell proportion") +
+  ylab("Cell Proportions") +
   xlab("CD4 cell subtype")
 ```
+## T-cell checkpoint gene expression
+
+```{r CD8_checkpoint_expr, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+# having a metadata column named CTLA4 causes errors when trying to plot CTLA4 gene expression
+cd8_plot <- cd8
+cd8_plot$CTLA4 <- NULL
+
+checkpoint_genes <- c("CTLA4","PDCD1","HAVCR2","LAG3","TIGIT","CD38")
+VlnPlot(cd8_plot, features = checkpoint_genes, pt.size = 0, 
+        group.by = "annotation_level3", split.by = "patient_group",
+        stack = TRUE, flip = TRUE, cols = colors)
+
+
+cd4_plot <- cd4
+cd4_plot$CTLA4 <- NULL
+
+checkpoint_genes <- c("CTLA4","PDCD1","HAVCR2","LAG3","TIGIT","CD38")
+VlnPlot(cd4_plot, features = checkpoint_genes, pt.size = 0, 
+        group.by = "annotation_level3", split.by = "patient_group",
+        stack = TRUE, flip = TRUE, cols = colors)
+
+
+```
+
+
+## TCR analysis TODO: figures 4 and S5
+
+### CD8+ TCR analysis
 
 ```{r CD8_tcr_1, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
 cd8_tcr <- combined_tcr_merge[combined_tcr_merge$annotation_level2 %in% "CD8_Tcell",]
@@ -300,11 +330,79 @@ clonalAbundance(combined.TCR,
 clonalAbundance(combined.TCR, cloneCall = "gene", scale = TRUE)
 
 
-clonalLength(combined.TCR) 
+# clonalLength(combined.TCR) 
+```
+
+### CD4+ TCR analysis
+```{r CD4_tcr_1, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+cd4_tcr <- combined_tcr_merge[combined_tcr_merge$annotation_level2 %in% "CD4_Tcell",]
+cd4_split_tcr <- split(cd4_tcr, f = combined_tcr_merge$donor_id)
+cd4_merge <- cd4[,cd4$flow_cell == "CD3"]
+cd4_merge <- combineExpression(split_tcr,
+                              cd4_merge,
+                              cloneCall = "gene",
+                              proportion = TRUE,
+                              group.by = "donor_id")
+Idents(cd4_merge) <- cd4_merge$annotation_level3
+
+DimPlot(cd4_merge, group.by = "cloneSize")
+clonalOverlay(cd4_merge, reduction = "umap", cutpoint = 1, bins = 10, facet.by = "patient_group")
+clonalNetwork(cd4_merge, reduction = "umap", group.by = "annotation_level3",
+              filter.clones = NULL, filter.identity = "Th1_effector", cloneCall = "strict")
+```
+
+```{r cd4_tcr_2, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+clonalOverlay(cd4_merge, 
+              reduction = "umap", 
+              cutpoint = 1, 
+              bins = 10, 
+              facet.by = "patient_group") + 
+              guides(color = "none")
+```
+
+```{r cd4_tcr_3, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+cd4_merge2 <- cd4_merge
+
+cd4_merge2$cdrs3_pat <- paste(cd4_merge2$CTaa, cd4_merge2$sample, sep = "_")
+
+freqs <- (table(cd4_merge2$cdrs3_pat)/sum(!is.na(cd4_merge2$cdrs3_pat))) %>% data.frame()
+sorted <- freqs$Freq
+names(sorted) <- freqs$Var1
+sorted <- sort(sorted, decreasing = TRUE)
+largest_clones <- head(sorted, 6)
+
+cells <- which(cd4_merge2$cdrs3_pat %in% names(largest_clones))
+DimPlot(cd4_merge, reduction = "umap", cells.highlight = cells) +NoLegend()
+
+
+
 ```
 
 
+```{r cd4_tcr_4, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+combined.TCR <- list()
+donor_vec <- unique(combined_tcr$donor_id)
+donor_vec <- donor_vec[order(donor_vec)]
 
+for (i in donor_vec){
+  combined.TCR[[i]] <- combined_tcr[combined_tcr$donor_id == i,]
+}
+
+combined.TCR <- cd4_split_tcr
+clonalQuant(combined.TCR, 
+            cloneCall="strict", 
+            chain = "both", 
+            scale = TRUE)
+
+clonalAbundance(combined.TCR, 
+                cloneCall = "gene", 
+                scale = FALSE)
+
+clonalAbundance(combined.TCR, cloneCall = "gene", scale = TRUE)
+
+
+# clonalLength(combined.TCR) 
+```
 
 
 
