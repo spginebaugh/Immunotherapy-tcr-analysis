@@ -37,11 +37,15 @@ prep_data <- function(seurat_obj){
   seurat_obj$patient_group <- factor(seurat_obj$patient_group,
                                      levels = c("Control","CPI no colitis","CPI colitis"),
                                      ordered = FALSE)
+  donor_ids <- c(paste0("CT",1:8),
+                 paste0("NC",1:6),
+                 paste0("C",1:8))
+  donor_ids <- donor_ids[donor_ids %in% seurat_obj$patient]
+  
   seurat_obj$donor_id <- factor(seurat_obj$donor_id, 
-                           levels = c("CT1","CT2","CT3","CT4","CT6",
-                                      "NC1","NC2","NC3","NC4","NC6",
-                                      "C1","C2","C3","C4","C5","C6"), 
-                          ordered = FALSE)
+                                levels = donor_ids, 
+                                ordered = FALSE)
+  return(seurat_obj)
 }
 ```
 
@@ -102,6 +106,7 @@ DimPlot(sc_all, group.by = c("annotation_level1"), label = TRUE, raster = TRUE) 
 DimPlot(sc_all, group.by = c("patient_group"), label = TRUE, raster = TRUE, cols = colors) + ggtitle("Patient Group")
 
 ```
+
 ```{r allcell_umap_celltype_2, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
 DimPlot(sc_all, group.by = c("flow_cell", "sex"), label = FALSE, raster = TRUE)
 ```
@@ -111,7 +116,7 @@ When looking only at the CD45+ separated cells, we see that colitis patients hav
 
 ```{r cd45_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
 meta_45 <- sc_all@meta.data[sc_all@meta.data$flow_cell == "CD45", ]
-
+meta_45$donor_id <- factor(meta_45$donor_id)
 
 axis_colors <- sapply(levels(meta_45$donor_id), function(x) {
   if (grepl("^CT", x)) return(ctr_col)       # Check for CT first
@@ -132,6 +137,11 @@ ggplot(meta_45, aes(x = donor_id, fill = annotation_level1)) +
 
 Additionally, we can see that there are large differences between treatment groups within different celltypes.
 
+```{r cluster_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+DimPlot(sc_all[,sc_all@meta.data$flow_cell == "CD45"], group.by = "RNA_snn_res.0.4", split.by = "patient_group") +
+  ggtitle("")
+
+```
 
 ## Tcell overview
 
