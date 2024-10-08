@@ -47,6 +47,15 @@ prep_data <- function(seurat_obj){
                                 ordered = FALSE)
   return(seurat_obj)
 }
+
+get_donor_colors <- function(meta_data){
+    axis_colors <- sapply(levels(meta_data$donor_id), function(x) {
+      if (grepl("^CT", x)) return(ctr_col)     
+      else if (grepl("^C[0-9]", x)) return(cpi_col)  
+      else if (grepl("^NC", x)) return(cpi_nc_col)    
+    })
+    return(axis_colors)
+}
 ```
 
 ```{r import_data, include = FALSE, message = FALSE, warning = FALSE}
@@ -118,17 +127,13 @@ When looking only at the CD45+ separated cells, we see that colitis patients hav
 meta_45 <- sc_all@meta.data[sc_all@meta.data$flow_cell == "CD45", ]
 meta_45$donor_id <- factor(meta_45$donor_id)
 
-axis_colors <- sapply(levels(meta_45$donor_id), function(x) {
-  if (grepl("^CT", x)) return(ctr_col)       # Check for CT first
-  else if (grepl("^C[0-9]", x)) return(cpi_col)  # Then check for C followed by number
-  else if (grepl("^NC", x)) return(cpi_nc_col)    # Check for NC
-})
+axis_colors <- get_donor_colors(meta_45)
 
 
 ggplot(meta_45, aes(x = donor_id, fill = annotation_level1)) +
   geom_bar(position = "fill") +
   theme_prism() +
-  theme(axis.text.x = element_text(color = axis_colors)) +
+  theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1)) +
   ylab("Cell Proportion in CD45+ Separated Cells") +
   xlab("Patient ID")
 ## TODO: add TCell proportion plot and stats
@@ -162,30 +167,41 @@ DimPlot(seurat, group.by = c("azimuth_celltype_1","azimuth_celltype_2","annotati
 ```
 
 ```{r Azimuth_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+axis_colors <- get_donor_colors(seurat@meta.data)
 ggplot(seurat@meta.data, aes(x = donor_id, fill = annotation_level2)) +
   geom_bar(position = "fill") +
-  theme_prism()
+  theme_prism() +
+  theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1))
 ```
 
-## CD4 Tcell overview
+## CD8+ Tcell overview
 
 First, we analyze the CD8+ Tcells. We see distinct clusters based on known celltype markers, and we see a large difference in cell-type proportions of CPI colitis patients compared to both controls and CPI without colitis. In particular, we see a large decrease in the proportion of Tissue Resident Memory cells (Trm) and a large increase in the proportion of Th1 effector cells, cycling cells, and regulatory T-cells
 
-```{r CD8_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
-DimPlot(cd8, group.by = c("patient_group","annotation_level3"), label = TRUE)
+```{r CD8_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 5, fig.height = 5,}
+DimPlot(cd8, group.by = c("patient_group"), label = TRUE, cols = colors) +
+  ggtitle("Patient Group")
+DimPlot(cd8, group.by = c("annotation_level3"), label = TRUE) +
+  ggtitle("CD8+ T-cell sub-clustering")
 ```
 
 ```{r CD8_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+axis_colors <- get_donor_colors(cd8@meta.data)
 ggplot(cd8@meta.data, aes(x = donor_id, fill = annotation_level3)) +
   geom_bar(position = "fill") +
-  theme_prism()
+  theme_prism() +
+  theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1))
 
 cd8_prop <- prop.table(table(cd8$patient_group, cd8$annotation_level3), margin = 1) %>%
   data.frame()
 cd8_prop$Var1 <- factor(cd8_prop$Var1, levels = c("Control","CPI no colitis","CPI colitis"))
 ggplot(cd8_prop, aes(x = Var2, y = Freq, fill = Var1)) +
   geom_bar(stat = "identity", position = position_dodge()) +
-  theme_prism()
+  theme_prism() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  scale_fill_manual(values = colors) +
+  ylab("Cell proportion") +
+  xlab("CD8 cell subtype")
 ```
 
 ```{r CD8_tcr_1, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
