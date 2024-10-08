@@ -174,9 +174,9 @@ ggplot(seurat@meta.data, aes(x = donor_id, fill = annotation_level2)) +
   theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1))
 ```
 
-## CD8+ Tcell overview
+## CD8+ T-cell overview
 
-First, we analyze the CD8+ Tcells. We see distinct clusters based on known celltype markers, and we see a large difference in cell-type proportions of CPI colitis patients compared to both controls and CPI without colitis. In particular, we see a large decrease in the proportion of Tissue Resident Memory cells (Trm) and a large increase in the proportion of Th1 effector cells, cycling cells, and regulatory T-cells
+First, we analyze the CD8+ Tcells. We see distinct clusters based on known celltype markers, and we see a large difference in cell-type proportions of CPI colitis patients compared to both controls and CPI without colitis. In particular, we see a large increase in the cycling and cytotoxic effector cells in CPI colitis, and a loss of Trm IEL and Trm LP1 cells.
 
 ```{r CD8_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 5, fig.height = 5,}
 DimPlot(cd8, group.by = c("patient_group"), label = TRUE, cols = colors) +
@@ -202,6 +202,35 @@ ggplot(cd8_prop, aes(x = Var2, y = Freq, fill = Var1)) +
   scale_fill_manual(values = colors) +
   ylab("Cell proportion") +
   xlab("CD8 cell subtype")
+```
+
+## CD4+ T-cell overview
+
+Next, we analyze the CD4+ T-cells. We see distinct clusters based on known celltype markers, and we see a large difference in cell-type proportions of CPI colitis patients compared to both controls and CPI without colitis. In particular, we see a notable decrease in the proportion of Tissue Resident Memory cells (Trm) and a large increase in the proportion of Th1 effector cells, cycling cells, and regulatory T-cells
+
+```{r CD4_umap, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 5, fig.height = 5,}
+DimPlot(cd4, group.by = c("patient_group"), label = TRUE, cols = colors) +
+  ggtitle("Patient Group")
+DimPlot(cd4, group.by = c("annotation_level3"), label = TRUE) +
+  ggtitle("CD4+ T-cell sub-clustering")
+```
+```{r CD4_cell_prop, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
+axis_colors <- get_donor_colors(cd4@meta.data)
+ggplot(cd4@meta.data, aes(x = donor_id, fill = annotation_level3)) +
+  geom_bar(position = "fill") +
+  theme_prism() +
+  theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1))
+
+cd4_prop <- prop.table(table(cd4$patient_group, cd4$annotation_level3), margin = 1) %>%
+  data.frame()
+cd4_prop$Var1 <- factor(cd4_prop$Var1, levels = c("Control","CPI no colitis","CPI colitis"))
+ggplot(cd4_prop, aes(x = Var2, y = Freq, fill = Var1)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  theme_prism() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  scale_fill_manual(values = colors) +
+  ylab("Cell proportion") +
+  xlab("CD4 cell subtype")
 ```
 
 ```{r CD8_tcr_1, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5,}
