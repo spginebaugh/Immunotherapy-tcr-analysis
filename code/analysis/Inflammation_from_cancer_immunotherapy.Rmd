@@ -11,7 +11,6 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```{r load_libraries, include = FALSE, message = FALSE, warning = FALSE}
 library(Seurat)
 library(qs)
-library(ggplot2)
 library(magrittr)
 library(dplyr)
 library(harmony)
@@ -28,6 +27,9 @@ library(ggpmisc)
 library(ggprism)
 library(ggrepel)
 library(knitr)
+
+library(clusterProfiler)
+library(msigdbr)
 
 source("code/utils/TCR_utils.R")
 ```
@@ -301,21 +303,23 @@ cd4_pb[checkpoint_genes,]
 
 ```
 
-```{r pseudobulk_comparison, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
+In general, we see a strong correlation between colitis-associated changes in gene expression between CD8+ and CD4+ T-cells.
+
+```{r pseudobulk_comparison, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 11}
 de_merge <- inner_join(cd4_pb, cd8_pb, by = "gene_name", suffix = c(".CD4",".CD8"))
 de_merge <- de_merge[!is.na(de_merge$p_val_adj.CD4) & !is.na(de_merge$p_val_adj.CD8),]
 
 ggplot(de_merge, aes(x = avg_log2FC.CD4, y = avg_log2FC.CD8)) +
   geom_point() +
   theme_prism() +
+  stat_poly_line() +
+  stat_poly_eq() +
   geom_text_repel(data = subset(de_merge,
                          avg_log2FC.CD4 > 2 |
                            avg_log2FC.CD4 < 0.5 |
                            avg_log2FC.CD8 > 2 |
                            avg_log2FC.CD8 < -1.2),
                   mapping = aes(x = avg_log2FC.CD4, y = avg_log2FC.CD8, label = gene_name))
-
-
 ```
 
 ## TCR analysis TODO: figures 4 and S5
