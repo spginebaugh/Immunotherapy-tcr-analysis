@@ -86,6 +86,11 @@ add_summary_metadata <- function(metadata){
       })
   return(metadata)
 }
+
+get_patient_group_factor <- function(patient_group){
+  patient_group <- factor(patient_group, levels = c("Control","CPI no colitis","CPI colitis"), ordered = FALSE)
+  return(patient_group)
+}
 ```
 
 ```{r import_data, include = FALSE, message = FALSE, warning = FALSE}
@@ -378,8 +383,8 @@ cd_all_meta$patient_subcelltype <- paste0(cd_all_meta$patient, "_", cd_all_meta$
 unique_clones <- cd_all_meta %>%
   group_by(patient_celltype) %>%
   summarize(unique_clones = n_distinct(CTaa))
-
 unique_clones <- add_summary_metadata(unique_clones)
+unique_clones$patient_group <- get_patient_group_factor(unique_clones$patient_group)
 
 
 expansion_ratio <- cd_all_meta %>%
@@ -387,9 +392,10 @@ expansion_ratio <- cd_all_meta %>%
   summarize(
     expanded_unique = n_distinct(CTaa[clonalFrequency > 1]),
     single_count = sum(clonalFrequency == 1),
-    ratio = expanded_unique / single_count
+    ratio = expanded_unique / (single_count + expanded_unique)
   )
 expansion_ratio <- add_summary_metadata(expansion_ratio)
+expansion_ratio$patient_group <- get_patient_group_factor(expansion_ratio$patient_group)
 
 cd8_expanded <- cd_all_meta %>%
   dplyr::filter(azimuth_celltype_1 == "CD8 T") %>%
@@ -397,10 +403,23 @@ cd8_expanded <- cd_all_meta %>%
   summarize(
     expanded_unique = n_distinct(CTaa[clonalFrequency > 1]),
     single_count = sum(clonalFrequency == 1),
-    ratio = expanded_unique / single_count
+    ratio = expanded_unique / (single_count + expanded_unique)
   )
 colnames(cd8_expanded)[1] <- "patient_celltype"
 cd8_expanded <- add_summary_metadata(cd8_expanded)
+cd8_expanded$patient_group <- get_patient_group_factor(cd8_expanded$patient_group)
+
+cd4_expanded <- cd_all_meta %>%
+  dplyr::filter(azimuth_celltype_1 == "CD4 T") %>%
+  group_by(patient_subcelltype) %>%
+  summarize(
+    expanded_unique = n_distinct(CTaa[clonalFrequency > 1]),
+    single_count = sum(clonalFrequency == 1),
+    ratio = expanded_unique / (single_count + expanded_unique)
+  )
+colnames(cd4_expanded)[1] <- "patient_celltype"
+cd4_expanded <- add_summary_metadata(cd4_expanded)
+cd4_expanded$patient_group <- get_patient_group_factor(cd4_expanded$patient_group)
 
 
 ## TODO: Fix the ordering and colors of the plots
@@ -415,14 +434,14 @@ ggplot(expansion_ratio, aes(x = patient_group , y = expanded_unique, fill = cell
   geom_boxplot() +
   theme_prism() +
   theme(axis.text.x = element_text(color = colors, angle = 90, vjust = 0.5, hjust = 1)) +
-  ylab("# unique expanded clonotypes per patient") +
+  ylab("# unique expanded clonotypes\nper patient") +
   xlab("")
 
 ggplot(expansion_ratio, aes(x = patient_group , y = ratio, fill = celltype)) +
   geom_boxplot() +
   theme_prism() +
   theme(axis.text.x = element_text(color = colors, angle = 90, vjust = 0.5, hjust = 1)) +
-  ylab("Number of expanded clonotypes per patient") +
+  ylab("Expanded clonotypes\n(% of total) per patient") +
   xlab("")
 
 
@@ -430,145 +449,76 @@ ggplot(cd8_expanded, aes(x = celltype, y = expanded_unique, fill = patient_group
   geom_boxplot() +
   theme_prism() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
-  ylab("# unique expanded clonotypes per patient") +
-  xlab("")
+  ylab("# unique expanded clonotypes\nper patient per celltype") +
+  xlab("") +
+  scale_fill_manual(values = colors)
 
+ggplot(cd4_expanded, aes(x = celltype, y = expanded_unique, fill = patient_group)) +
+  geom_boxplot() +
+  theme_prism() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  ylab("# unique expanded clonotypes\nper patient per celltype") +
+  xlab("") +
+  scale_fill_manual(values = colors)
 
 
 ```
 
 ```{r CD8_tcr_1, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
-cd8_tcr <- combined_tcr_merge[combined_tcr_merge$annotation_level2 %in% "CD8_Tcell",]
-cd8_split_tcr <- split(cd8_tcr, f = combined_tcr_merge$donor_id)
-cd8_merge <- cd8[,cd8$flow_cell == "CD3"]
-cd8_merge <- combineExpression(split_tcr,
-                              cd8_merge,
-                              cloneCall = "gene",
-                              proportion = TRUE,
-                              group.by = "donor_id")
-Idents(cd8_merge) <- cd8_merge$annotation_level3
-
 DimPlot(cd8_merge, group.by = "cloneSize")
 clonalOverlay(cd8_merge, reduction = "umap", cutpoint = 1, bins = 10, facet.by = "patient_group")
 clonalNetwork(cd8_merge, reduction = "umap", group.by = "annotation_level3",
-              filter.clones = NULL, filter.identity = "Cytotoxic_effector", cloneCall = "strict")
+              filter.clones = 2000, filter.identity = "Cytotoxic_effector", cloneCall = "aa", filter.graph = TRUE)
+library(circlize)
+library(scales)
+circles <- getCirclize(cd8_merge, group.by = "annotation_level3")
+grid.cols <- hue_pal()(length(unique(cd8_merge$annotation_level3)))
+names(grid.cols) <- unique(cd8_merge$annotation_level3)
+
+#Graphing the chord diagram
+chordDiagram(circles, self.link = 1, grid.col = grid.cols)
+chordDiagram(circles, self.link = 1, grid.col = grid.cols, directional = 1, direction.type = "arrows",
+    link.arr.type = "big.arrow")
 ```
 
 ```{r CD8_tcr_2, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
-clonalOverlay(cd8_merge, 
-              reduction = "umap", 
-              cutpoint = 1, 
-              bins = 10, 
-              facet.by = "patient_group") + 
-              guides(color = "none")
+clonalDiversity(cd8_split_tcr, cloneCall = "aa", group.by = "patient_group")
+clonalOverlap(cd8_split_tcr, cloneCall = "aa", group.by = "annotation_level3", method = "raw") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 ```
 
-```{r CD8_tcr_3, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
-cd8_merge2 <- cd8_merge
+```{r top_aa, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 11}
+top_aa <- cd8_merge@meta.data %>%
+  dplyr::filter(annotation_level3 == "Cytotoxic_effector") %>%
+  pull(CTaa) %>%
+  table()
+top_aa <- top_aa[order(top_aa, decreasing = TRUE)]
 
-cd8_merge2$cdrs3_pat <- paste(cd8_merge2$CTaa, cd8_merge2$sample, sep = "_")
+cd8_merge$top_aa <- NA
+cd8_merge$top_aa[cd8_merge$CTaa %in% names(top_aa)[1:10]] <- cd8_merge$CTaa[cd8_merge$CTaa %in% names(top_aa)[1:10]]
 
-freqs <- (table(cd8_merge2$cdrs3_pat)/sum(!is.na(cd8_merge2$cdrs3_pat))) %>% data.frame()
-sorted <- freqs$Freq
-names(sorted) <- freqs$Var1
-sorted <- sort(sorted, decreasing = TRUE)
-largest_clones <- head(sorted, 6)
-
-cells <- which(cd8_merge2$cdrs3_pat %in% names(largest_clones))
-DimPlot(cd8_merge, reduction = "umap", cells.highlight = cells) +NoLegend()
-
-
-
-```
-
-
-```{r CD8_tcr_4, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
-combined.TCR <- list()
-donor_vec <- unique(combined_tcr$donor_id)
-donor_vec <- donor_vec[order(donor_vec)]
-
-for (i in donor_vec){
-  combined.TCR[[i]] <- combined_tcr[combined_tcr$donor_id == i,]
+cells_list <- list()
+for (i in 1:20){
+  cells_list[[i]] <- which(cd8_merge$CTaa == names(top_aa)[i])
 }
-
-combined.TCR <- cd8_split_tcr
-clonalQuant(combined.TCR, 
-            cloneCall="strict", 
-            chain = "both", 
-            scale = TRUE)
-
-clonalAbundance(combined.TCR, 
-                cloneCall = "gene", 
-                scale = FALSE)
-
-clonalAbundance(combined.TCR, cloneCall = "gene", scale = TRUE)
+names(cells_list) <- names(top_aa)[1:20]
 
 
-# clonalLength(combined.TCR) 
-```
-
-### CD4+ TCR analysis
-```{r CD4_tcr_1, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
-
-DimPlot(cd4_merge, group.by = "cloneSize")
-clonalOverlay(cd4_merge, reduction = "umap", cutpoint = 1, bins = 10, facet.by = "patient_group")
-clonalNetwork(cd4_merge, reduction = "umap", group.by = "annotation_level3",
-              filter.clones = NULL, filter.identity = "Th1_effector", cloneCall = "strict")
-```
-
-```{r cd4_tcr_2, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
-clonalOverlay(cd4_merge, 
-              reduction = "umap", 
-              cutpoint = 1, 
-              bins = 10, 
-              facet.by = "patient_group") + 
-              guides(color = "none")
-```
-
-```{r cd4_tcr_3, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
-cd4_merge2 <- cd4_merge
-
-cd4_merge2$cdrs3_pat <- paste(cd4_merge2$CTaa, cd4_merge2$sample, sep = "_")
-
-freqs <- (table(cd4_merge2$cdrs3_pat)/sum(!is.na(cd4_merge2$cdrs3_pat))) %>% data.frame()
-sorted <- freqs$Freq
-names(sorted) <- freqs$Var1
-sorted <- sort(sorted, decreasing = TRUE)
-largest_clones <- head(sorted, 6)
-
-cells <- which(cd4_merge2$cdrs3_pat %in% names(largest_clones))
-DimPlot(cd4_merge, reduction = "umap", cells.highlight = cells) +NoLegend()
-
-
+DimPlot(cd8_merge, group.by = "top_aa", raster = FALSE, pt.size = 4, na.value = "black")
+DimPlot(cd8_merge, cells.highlight = cells_list, cols.highlight = hue_pal()(length(cells_list)),
+        raster = FALSE, sizes.highlight = 3) + 
+theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 9),  
+    legend.key.size = unit(0.3, "cm"),     
+    legend.spacing.x = unit(0.2, "cm"),    
+    legend.margin = margin(0, 0, 0, 0),    
+    legend.box = "horizontal",             
+    legend.text.align = 0                  
+  ) +
+  guides(color = guide_legend(nrow = 7))  
 
 ```
-
-
-```{r cd4_tcr_4, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 11, fig.height = 5}
-combined.TCR <- list()
-donor_vec <- unique(combined_tcr$donor_id)
-donor_vec <- donor_vec[order(donor_vec)]
-
-for (i in donor_vec){
-  combined.TCR[[i]] <- combined_tcr[combined_tcr$donor_id == i,]
-}
-
-combined.TCR <- cd4_split_tcr
-clonalQuant(combined.TCR, 
-            cloneCall="strict", 
-            chain = "both", 
-            scale = TRUE)
-
-clonalAbundance(combined.TCR, 
-                cloneCall = "gene", 
-                scale = FALSE)
-
-clonalAbundance(combined.TCR, cloneCall = "gene", scale = TRUE)
-
-
-# clonalLength(combined.TCR) 
-```
-
 
 
 
