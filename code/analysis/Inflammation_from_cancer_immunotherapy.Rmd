@@ -340,7 +340,6 @@ ggplot(de_merge, aes(x = avg_log2FC.CD4, y = avg_log2FC.CD8)) +
   ylab("CD8+ log2FC")
 ```
 
-## TCR analysis TODO: figures 4 and S5
 
 ### CD8+ TCR analysis
 
