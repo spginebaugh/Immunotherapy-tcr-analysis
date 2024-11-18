@@ -421,7 +421,6 @@ cd4_expanded <- add_summary_metadata(cd4_expanded)
 cd4_expanded$patient_group <- get_patient_group_factor(cd4_expanded$patient_group)
 
 
-## TODO: Fix the ordering and colors of the plots
 ggplot(unique_clones, aes(x = patient_group , y = unique_clones, fill = celltype  )) +
   geom_boxplot() +
   theme_prism() +
