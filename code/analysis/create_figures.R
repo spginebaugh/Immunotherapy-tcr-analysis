@@ -137,6 +137,7 @@ colors <- c("Control" = ctr_col,
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #                              Dataset overview                            ----
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## overview umap plots --------------------------------
 DimPlot(sc_all, group.by = c("annotation_level1"), label = TRUE, raster = TRUE) + ggtitle("Cell Type")
 DimPlot(sc_all, group.by = c("patient_group"), label = TRUE, raster = TRUE, cols = colors) + ggtitle("Patient Group")
 DimPlot(sc_all, group.by = c("flow_cell", "sex"), label = FALSE, raster = TRUE)
@@ -165,10 +166,11 @@ DimPlot(sc_all[,sc_all@meta.data$flow_cell == "CD45"], group.by = "RNA_snn_res.0
 #                               Tcell Overview                             ----
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## T cell marker umap ----------------
-DimPlot(seurat, group.by = c("patient_group", "flow_cell","sex"), label = FALSE, raster = TRUE, cols = colors)
+DimPlot(seurat, group.by = c("patient_group"), label = FALSE, raster = TRUE, cols = colors)
+DimPlot(seurat, group.by = c("flow_cell","sex"), label = FALSE, raster = TRUE)
 DimPlot(seurat, group.by = c("RNA_snn_res.1"), label = TRUE, raster = TRUE)
 FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", features = c("CD4","CD8A","CD8B"))
-FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", features = c("CD3E","CD3D","CD3G"))
+# FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", features = c("CD3E","CD3D","CD3G"))
 
 ## Azimuth umap -----------------
 seurat$annotation_level2[is.na(seurat$annotation_level2)] <- "Other"
@@ -291,7 +293,7 @@ ggplot(de_merge, aes(x = avg_log2FC.CD4, y = avg_log2FC.CD8)) +
   stat_poly_eq() +
   geom_text_repel(data = subset(de_merge,
                                 avg_log2FC.CD4 > 2 |
-                                  avg_log2FC.CD4 < 0.5 |
+                                  avg_log2FC.CD4 < -0.5 |
                                   avg_log2FC.CD8 > 2 |
                                   avg_log2FC.CD8 < -1.2),
                   mapping = aes(x = avg_log2FC.CD4, y = avg_log2FC.CD8, label = gene_name)) +
