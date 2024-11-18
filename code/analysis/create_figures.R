@@ -284,23 +284,31 @@ p1
 dev.off()
 
 ## CD4 umap -----------------
-DimPlot(cd4, group.by = c("patient_group"), label = TRUE, cols = colors) +
+p1 <- DimPlot(cd4, group.by = c("patient_group"), label = FALSE, cols = colors) +
   ggtitle("Patient Group")
-DimPlot(cd4, group.by = c("annotation_level3"), label = TRUE) +
+p2 <- DimPlot(cd4, group.by = c("annotation_level3"), label = TRUE) +
   ggtitle("CD4+ T-cell sub-clustering")
+
+png(filename = paste0(output_dir,"cd4_umaps.png"), width =720, height = 360, unit = "px")
+(p1 + p2)
+dev.off()
 
 ## CD4 cell prop ---------------
 axis_colors <- get_donor_colors(cd4@meta.data)
-ggplot(cd4@meta.data, aes(x = donor_id, fill = annotation_level3)) +
+p1 <- ggplot(cd4@meta.data, aes(x = donor_id, fill = annotation_level3)) +
   geom_bar(position = "fill") +
   theme_prism() +
   theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1)) +
   ylab("Cell Proportions")
 
+png(filename = paste0(output_dir,"cd4_cell_prop.png"), width =540, height = 360, unit = "px")
+p1
+dev.off()
+
 cd4_prop <- prop.table(table(cd4$patient_group, cd4$annotation_level3), margin = 1) %>%
   data.frame()
 cd4_prop$Var1 <- factor(cd4_prop$Var1, levels = c("Control", "CPI no colitis", "CPI colitis"))
-ggplot(cd4_prop, aes(x = Var2, y = Freq, fill = Var1)) +
+p1 <- ggplot(cd4_prop, aes(x = Var2, y = Freq, fill = Var1)) +
   geom_bar(stat = "identity", position = position_dodge()) +
   theme_prism() +
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
@@ -308,7 +316,9 @@ ggplot(cd4_prop, aes(x = Var2, y = Freq, fill = Var1)) +
   ylab("Cell Proportions") +
   xlab("CD4 cell subtype")
 
-
+png(filename = paste0(output_dir,"cd4_cell_prop_by_celltype.png"), width =540, height = 360, unit = "px")
+p1
+dev.off()
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #                         Checkpoint gene expression                       ----
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
