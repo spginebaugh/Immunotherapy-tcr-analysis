@@ -19,6 +19,9 @@ library(ggpmisc)
 library(ggprism)
 library(ggrepel)
 library(knitr)
+library(ggpubr)
+library(cowplot)
+library(patchwork)
 
 library(clusterProfiler)
 library(msigdbr)
@@ -117,6 +120,8 @@ get_patient_group_factor <- function(patient_group) {
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #                                Import Data                               ----
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+output_dir <- file.path("output_figures/")
+
 sc_all <- qread("data/processed/annotated_seurat.qs")
 seurat <- qread("data/processed/annotated_Tcell.qs")
 cd4 <- qread("data/processed/annotated_cd4.qs")
@@ -159,11 +164,14 @@ colors <- c(
 #                              Dataset overview                            ----
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## overview umap plots --------------------------------
-DimPlot(sc_all, group.by = c("annotation_level1"), label = TRUE, raster = TRUE) + ggtitle("Cell Type")
-DimPlot(sc_all, group.by = c("patient_group"), label = TRUE, raster = TRUE, cols = colors) + ggtitle("Patient Group")
-DimPlot(sc_all, group.by = c("flow_cell", "sex"), label = FALSE, raster = TRUE)
+p1 <- DimPlot(sc_all, group.by = c("annotation_level1"), label = TRUE, raster = TRUE) + ggtitle("Cell Type")
+p2 <- DimPlot(sc_all, group.by = c("patient_group"), label = FALSE, raster = TRUE, cols = colors) + ggtitle("Patient Group")
+p3 <- DimPlot(sc_all, group.by = c("flow_cell"), label = FALSE, raster = TRUE)
+p4 <- DimPlot(sc_all, group.by = c("sex"), label = FALSE, raster = TRUE)
 
-
+png(filename = paste0(output_dir,"overview_umaps.png"), width =720, height = 720, unit = "px")
+(p1 + p2)/(p3 + p4)
+dev.off()
 ## cd45 cell prop ---------------------
 meta_45 <- sc_all@meta.data[sc_all@meta.data$flow_cell == "CD45", ]
 meta_45$donor_id <- factor(meta_45$donor_id)
