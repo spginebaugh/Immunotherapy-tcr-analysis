@@ -179,39 +179,69 @@ meta_45$donor_id <- factor(meta_45$donor_id)
 axis_colors <- get_donor_colors(meta_45)
 
 
-ggplot(meta_45, aes(x = donor_id, fill = annotation_level1)) +
+p1 <- ggplot(meta_45, aes(x = donor_id, fill = annotation_level1)) +
   geom_bar(position = "fill") +
   theme_prism() +
   theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1)) +
   ylab("Cell Proportion in CD45+ Separated Cells") +
   xlab("Patient ID")
 
+png(filename = paste0(output_dir,"cd45_cell_prop.png"), width =420, height = 360, unit = "px")
+p1
+dev.off()
+
 ## cluster split by patient group umap -------------
-DimPlot(sc_all[, sc_all@meta.data$flow_cell == "CD45"], group.by = "RNA_snn_res.0.4", split.by = "patient_group") +
+p1 <- DimPlot(sc_all[, sc_all@meta.data$flow_cell == "CD45"], 
+        group.by = "RNA_snn_res.0.4", 
+        split.by = "patient_group") +
   ggtitle("")
 
+png(filename = paste0(output_dir,"cluster_split_patient_group.png"), width =720, height = 420, unit = "px")
+p1
+dev.off()
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #                               Tcell Overview                             ----
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## T cell marker umap ----------------
-DimPlot(seurat, group.by = c("patient_group"), label = FALSE, raster = TRUE, cols = colors)
-DimPlot(seurat, group.by = c("flow_cell", "sex"), label = FALSE, raster = TRUE)
-DimPlot(seurat, group.by = c("RNA_snn_res.1"), label = TRUE, raster = TRUE)
-FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", features = c("CD4", "CD8A", "CD8B"))
+p1 <- DimPlot(seurat, group.by = c("patient_group"), label = FALSE, raster = FALSE, cols = colors)
+p2 <- DimPlot(seurat, group.by = c("flow_cell"), label = FALSE, raster = FALSE)
+p3 <- DimPlot(seurat, group.by = c("sex"), label = FALSE, raster = FALSE)
+p4 <- DimPlot(seurat, group.by = c("RNA_snn_res.1"), label = TRUE, raster = FALSE)
+
+png(filename = paste0(output_dir,"tcell_overview_umaps.png"), width =720, height = 720, unit = "px")
+(p1 + p2)/(p3 + p4)
+dev.off()
+
+
+p1 <- FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", features = c("CD4", "CD8A", "CD8B"))
+png(filename = paste0(output_dir,"tcell_cd_markers.png"), width =720, height = 720, unit = "px")
+p1
+dev.off()
+
 # FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", features = c("CD3E","CD3D","CD3G"))
 
 ## Azimuth umap -----------------
 seurat$annotation_level2[is.na(seurat$annotation_level2)] <- "Other"
-DimPlot(seurat, group.by = c("azimuth_celltype_1", "azimuth_celltype_2", "annotation_level2"), label = FALSE, raster = FALSE)
+p1 <- DimPlot(seurat, 
+              group.by = c("azimuth_celltype_1", "azimuth_celltype_2", "annotation_level2"), 
+              label = FALSE, raster = FALSE)
+
+png(filename = paste0(output_dir,"azimuth_umaps.png"), width =840, height = 360, unit = "px")
+p1
+dev.off()
+
 
 ## Azimuth cell prop -------------
 axis_colors <- get_donor_colors(seurat@meta.data)
-ggplot(seurat@meta.data, aes(x = donor_id, fill = annotation_level2)) +
+p1 <- ggplot(seurat@meta.data, aes(x = donor_id, fill = annotation_level2)) +
   geom_bar(position = "fill") +
   theme_prism() +
   theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1))
 
+png(filename = paste0(output_dir,"azimuth_cell_prop.png"), width =420, height = 360, unit = "px")
+p1
+dev.off()
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
