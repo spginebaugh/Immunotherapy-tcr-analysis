@@ -22,6 +22,7 @@ library(knitr)
 library(ggpubr)
 library(cowplot)
 library(patchwork)
+library(Nebulosa)
 
 library(clusterProfiler)
 library(msigdbr)
@@ -332,16 +333,28 @@ cd4_plot$CTLA4 <- NULL
 
 checkpoint_genes <- c("CTLA4", "PDCD1", "HAVCR2", "LAG3", "TIGIT", "CD38")
 
-VlnPlot(cd8_plot,
+# VlnPlot(cd8_plot,
+#         features = checkpoint_genes, pt.size = 0,
+#         group.by = "patient_group", adjust = 2,
+#         stack = TRUE, flip = TRUE
+# ) 
+
+p1 <- VlnPlot(cd8_plot,
+  features = checkpoint_genes, pt.size = 0,
+  group.by = "patient_group", cols = colors, adjust = 2
+) 
+title1 <- ggdraw() + draw_label("CD8+ Gene expression", fontface = "bold")
+# plot_grid(title, p1, ncol = 1, rel_heights = c(0.1,1))
+
+p2 <- VlnPlot(cd4_plot,
   features = checkpoint_genes, pt.size = 0,
   group.by = "patient_group", cols = colors, adjust = 2
 )
+title2 <- ggdraw() + draw_label("CD4+ Gene expression", fontface = "bold")
 
-VlnPlot(cd4_plot,
-  features = checkpoint_genes, pt.size = 0,
-  group.by = "patient_group", cols = colors, adjust = 2
-)
-
+png(filename = paste0(output_dir,"checkpoint_gene_exp_group.png"), width =540, height = 720, unit = "px")
+plot_grid(title1, p1, title2, p2, ncol = 1, rel_heights = c(0.1,1,0.1,1))
+dev.off()
 # VlnPlot(cd8_plot, features = checkpoint_genes, pt.size = 0,
 #         group.by = "annotation_level3")
 #
@@ -349,22 +362,40 @@ VlnPlot(cd4_plot,
 #         group.by = "annotation_level3")
 
 
-VlnPlot(cd8_plot,
+p1 <- VlnPlot(cd8_plot,
   features = checkpoint_genes, pt.size = 0,
   group.by = "annotation_level3", split.by = "patient_group",
   stack = TRUE, flip = TRUE, cols = colors
-)
+) + ggtitle("CD8+ Gene expression")
 
-VlnPlot(cd4_plot,
+p2 <- VlnPlot(cd4_plot,
   features = checkpoint_genes, pt.size = 0,
   group.by = "annotation_level3", split.by = "patient_group",
   stack = TRUE, flip = TRUE, cols = colors
-)
+) + ggtitle("CD4+ Gene expression")
 
-FeaturePlot(cd8_plot, min.cutoff = "q1", max.cutoff = "q99", features = checkpoint_genes)
-FeaturePlot(cd4_plot, min.cutoff = "q1", max.cutoff = "q99", features = checkpoint_genes)
+png(filename = paste0(output_dir,"checkpoint_gene_exp_celltype.png"), width =840, height = 420, unit = "px")
+(p1 + p2)
+dev.off()
 
+
+# p1 <- FeaturePlot(cd8_plot, min.cutoff = "q1", max.cutoff = "q99", features = checkpoint_genes)
+# p2 <- FeaturePlot(cd4_plot, min.cutoff = "q1", max.cutoff = "q99", features = checkpoint_genes)
+
+p1 <- plot_density(cd8_plot, features = checkpoint_genes, reduction = "umap")
+title1 <- ggdraw() + draw_label("CD8+ Gene expression", fontface = "bold")
+p2 <- plot_density(cd4_plot, features = checkpoint_genes, reduction = "umap")
+title2 <- ggdraw() + draw_label("CD4+ Gene expression", fontface = "bold")
+
+png(filename = paste0(output_dir,"checkpoint_gene_exp_densityplot.png"), width =540, height = 720, unit = "px")
+plot_grid(title1, p1, title2, p2, ncol = 1, rel_heights = c(0.1,1,0.1,1))
+dev.off()
 ## pseudobulk prep ----------------------
+
+
+
+
+## TODO: output tables
 cd8_pb <- colitis_pseudobulk(cd8)
 cd4_pb <- colitis_pseudobulk(cd4)
 
@@ -375,7 +406,7 @@ de_merge <- inner_join(cd4_pb, cd8_pb, by = "gene_name", suffix = c(".CD4", ".CD
 de_merge <- de_merge[!is.na(de_merge$p_val_adj.CD4) & !is.na(de_merge$p_val_adj.CD8), ]
 
 ## pseudobulk comparison plot ------------------
-ggplot(de_merge, aes(x = avg_log2FC.CD4, y = avg_log2FC.CD8)) +
+p1 <- ggplot(de_merge, aes(x = avg_log2FC.CD4, y = avg_log2FC.CD8)) +
   geom_point() +
   theme_prism() +
   stat_poly_line() +
@@ -392,6 +423,10 @@ ggplot(de_merge, aes(x = avg_log2FC.CD4, y = avg_log2FC.CD8)) +
   ) +
   xlab("CD4+ log2FC") +
   ylab("CD8+ log2FC")
+
+png(filename = paste0(output_dir,"de_comparison.png"), width =540, height = 540, unit = "px")
+p1
+dev.off()
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #                                  TCR stats                               ----
