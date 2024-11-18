@@ -239,7 +239,7 @@ p1 <- ggplot(seurat@meta.data, aes(x = donor_id, fill = annotation_level2)) +
   theme_prism() +
   theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1))
 
-png(filename = paste0(output_dir,"azimuth_cell_prop.png"), width =420, height = 360, unit = "px")
+png(filename = paste0(output_dir,"azimuth_cell_prop.png"), width =540, height = 360, unit = "px")
 p1
 dev.off()
 
@@ -248,28 +248,40 @@ dev.off()
 #                            Tcell subclustering                           ----
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## CD8 umap ------------------
-DimPlot(cd8, group.by = c("patient_group"), label = TRUE, cols = colors) +
+p1 <- DimPlot(cd8, group.by = c("patient_group"), label = FALSE, cols = colors) +
   ggtitle("Patient Group")
-DimPlot(cd8, group.by = c("annotation_level3"), label = TRUE) +
+p2 <- DimPlot(cd8, group.by = c("annotation_level3"), label = TRUE) +
   ggtitle("CD8+ T-cell sub-clustering")
+
+png(filename = paste0(output_dir,"cd8_umaps.png"), width =720, height = 360, unit = "px")
+(p1 + p2)
+dev.off()
 
 ## CD8 cell prop -------------
 axis_colors <- get_donor_colors(cd8@meta.data)
-ggplot(cd8@meta.data, aes(x = donor_id, fill = annotation_level3)) +
+p1 <- ggplot(cd8@meta.data, aes(x = donor_id, fill = annotation_level3)) +
   geom_bar(position = "fill") +
   theme_prism() +
   theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1))
 
+png(filename = paste0(output_dir,"cd8_cell_prop.png"), width =540, height = 360, unit = "px")
+p1
+dev.off()
+
 cd8_prop <- prop.table(table(cd8$patient_group, cd8$annotation_level3), margin = 1) %>%
   data.frame()
 cd8_prop$Var1 <- factor(cd8_prop$Var1, levels = c("Control", "CPI no colitis", "CPI colitis"))
-ggplot(cd8_prop, aes(x = Var2, y = Freq, fill = Var1)) +
+p1 <- ggplot(cd8_prop, aes(x = Var2, y = Freq, fill = Var1)) +
   geom_bar(stat = "identity", position = position_dodge()) +
   theme_prism() +
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
   scale_fill_manual(values = colors) +
   ylab("Cell proportion") +
   xlab("CD8 cell subtype")
+
+png(filename = paste0(output_dir,"cd8_cell_prop_by_celltype.png"), width =540, height = 360, unit = "px")
+p1
+dev.off()
 
 ## CD4 umap -----------------
 DimPlot(cd4, group.by = c("patient_group"), label = TRUE, cols = colors) +
