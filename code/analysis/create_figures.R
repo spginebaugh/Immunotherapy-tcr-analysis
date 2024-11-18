@@ -447,6 +447,7 @@ cd8_merge$cloneSize[cd8_merge$clonalFrequency == 1] <- "Single"
 cd8_merge$expanded <- ifelse(cd8_merge$cloneSize == "Single", "Single", "Expanded")
 Idents(cd8_merge) <- cd8_merge$annotation_level3
 
+
 cd4_tcr <- combined_tcr_merge[combined_tcr_merge$annotation_level2 %in% "CD4_Tcell", ]
 cd4_split_tcr <- split(cd4_tcr, f = combined_tcr_merge$donor_id)
 cd4_merge <- cd4[, cd4$flow_cell == "CD3"]
@@ -509,43 +510,55 @@ cd4_expanded <- add_summary_metadata(cd4_expanded)
 cd4_expanded$patient_group <- get_patient_group_factor(cd4_expanded$patient_group)
 
 ## TCR stats plots --------------------
-ggplot(unique_clones, aes(x = patient_group, y = unique_clones, fill = celltype)) +
+p1 <- ggplot(unique_clones, aes(x = patient_group, y = unique_clones, fill = celltype)) +
   geom_boxplot() +
   theme_prism() +
   theme(axis.text.x = element_text(color = colors, angle = 90, vjust = 0.5, hjust = 1)) +
   ylab("# unique clonotypes per patient") +
-  xlab("")
+  xlab("") +
+  ggtitle("Unique Clones")
 
-ggplot(expansion_ratio, aes(x = patient_group, y = expanded_unique, fill = celltype)) +
+p2 <- ggplot(expansion_ratio, aes(x = patient_group, y = expanded_unique, fill = celltype)) +
   geom_boxplot() +
   theme_prism() +
   theme(axis.text.x = element_text(color = colors, angle = 90, vjust = 0.5, hjust = 1)) +
   ylab("# unique expanded clonotypes\nper patient") +
-  xlab("")
+  xlab("") +
+  ggtitle("Unique Expanded Clones")
 
-ggplot(expansion_ratio, aes(x = patient_group, y = ratio, fill = celltype)) +
+p3 <- ggplot(expansion_ratio, aes(x = patient_group, y = ratio, fill = celltype)) +
   geom_boxplot() +
   theme_prism() +
   theme(axis.text.x = element_text(color = colors, angle = 90, vjust = 0.5, hjust = 1)) +
   ylab("Expanded clonotypes\n(% of total) per patient") +
-  xlab("")
+  xlab("") +
+  ggtitle("Ratio of Expanded Clones")
 
+png(filename = paste0(output_dir,"tcr_stats.png"), width = 720, height = 420, unit = "px")
+p1 + p2 + p3
+dev.off()
 
-ggplot(cd8_expanded, aes(x = celltype, y = expanded_unique, fill = patient_group)) +
+p1 <- ggplot(cd8_expanded, aes(x = celltype, y = expanded_unique, fill = patient_group)) +
   geom_boxplot() +
   theme_prism() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
   ylab("# unique expanded clonotypes\nper patient per celltype") +
   xlab("") +
-  scale_fill_manual(values = colors)
+  scale_fill_manual(values = colors) +
+  ggtitle("CD8+ unique clones per celltype")
 
-ggplot(cd4_expanded, aes(x = celltype, y = expanded_unique, fill = patient_group)) +
+p2 <- ggplot(cd4_expanded, aes(x = celltype, y = expanded_unique, fill = patient_group)) +
   geom_boxplot() +
   theme_prism() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
   ylab("# unique expanded clonotypes\nper patient per celltype") +
   xlab("") +
-  scale_fill_manual(values = colors)
+  scale_fill_manual(values = colors) +
+  ggtitle("CD4+ unique clones per celltype")
+
+png(filename = paste0(output_dir,"celltype_tcr_stats.png"), width = 720, height = 720, unit = "px")
+p1/p2
+dev.off()
 
 ## circle plot ---------------------
 circles <- getCirclize(cd8_merge, group.by = "annotation_level3")
@@ -553,13 +566,18 @@ grid.cols <- hue_pal()(length(unique(cd8_merge$annotation_level3)))
 names(grid.cols) <- unique(cd8_merge$annotation_level3)
 
 # Graphing the chord diagram
+png(filename = paste0(output_dir,"chord_diagram.png"), width = 360, height = 360, unit = "px")
 chordDiagram(circles, self.link = 1, grid.col = grid.cols)
-
+dev.off()
 
 ## clonal diversity and overlap -------------------
 clonalDiversity(cd8_split_tcr, cloneCall = "aa", group.by = "patient_group")
-clonalOverlap(cd8_split_tcr, cloneCall = "aa", group.by = "annotation_level3", method = "raw") +
+p1 <- clonalOverlap(cd8_split_tcr, cloneCall = "aa", group.by = "annotation_level3", method = "raw") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+png(filename = paste0(output_dir,"clonal_overlap.png"), width = 540, height = 540, unit = "px")
+p1
+dev.off()
 
 ## top AA plot ------------------------
 top_aa <- cd8_merge@meta.data %>%
@@ -577,12 +595,10 @@ for (i in 1:20) {
 }
 names(cells_list) <- names(top_aa)[1:20]
 
-
-DimPlot(cd8_merge, group.by = "top_aa", raster = FALSE, pt.size = 4, na.value = "black")
-DimPlot(cd8_merge,
+p1 <- DimPlot(cd8_merge,
   cells.highlight = cells_list, cols.highlight = hue_pal()(length(cells_list)),
   raster = FALSE, sizes.highlight = 3
-) +
+  ) +
   theme(
     legend.position = "bottom",
     legend.text = element_text(size = 9),
@@ -593,3 +609,8 @@ DimPlot(cd8_merge,
     legend.text.align = 0
   ) +
   guides(color = guide_legend(nrow = 7))
+
+png(filename = paste0(output_dir,"top20_clonotype.png"), width = 720, height = 540, unit = "px")
+p1
+dev.off()
+
