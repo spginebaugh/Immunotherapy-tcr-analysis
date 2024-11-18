@@ -170,8 +170,8 @@ p2 <- DimPlot(sc_all, group.by = c("patient_group"), label = FALSE, raster = TRU
 p3 <- DimPlot(sc_all, group.by = c("flow_cell"), label = FALSE, raster = TRUE)
 p4 <- DimPlot(sc_all, group.by = c("sex"), label = FALSE, raster = TRUE)
 
-png(filename = paste0(output_dir,"overview_umaps.png"), width =720, height = 720, unit = "px")
-(p1 + p2)/(p3 + p4)
+png(filename = paste0(output_dir, "overview_umaps.png"), width = 720, height = 720, unit = "px")
+(p1 + p2) / (p3 + p4)
 dev.off()
 ## cd45 cell prop ---------------------
 meta_45 <- sc_all@meta.data[sc_all@meta.data$flow_cell == "CD45", ]
@@ -187,17 +187,18 @@ p1 <- ggplot(meta_45, aes(x = donor_id, fill = annotation_level1)) +
   ylab("Cell Proportion in CD45+ Separated Cells") +
   xlab("Patient ID")
 
-png(filename = paste0(output_dir,"cd45_cell_prop.png"), width =420, height = 360, unit = "px")
+png(filename = paste0(output_dir, "cd45_cell_prop.png"), width = 420, height = 360, unit = "px")
 p1
 dev.off()
 
 ## cluster split by patient group umap -------------
-p1 <- DimPlot(sc_all[, sc_all@meta.data$flow_cell == "CD45"], 
-        group.by = "RNA_snn_res.0.4", 
-        split.by = "patient_group") +
+p1 <- DimPlot(sc_all[, sc_all@meta.data$flow_cell == "CD45"],
+  group.by = "RNA_snn_res.0.4",
+  split.by = "patient_group"
+) +
   ggtitle("")
 
-png(filename = paste0(output_dir,"cluster_split_patient_group.png"), width =720, height = 420, unit = "px")
+png(filename = paste0(output_dir, "cluster_split_patient_group.png"), width = 720, height = 420, unit = "px")
 p1
 dev.off()
 
@@ -210,13 +211,13 @@ p2 <- DimPlot(seurat, group.by = c("flow_cell"), label = FALSE, raster = FALSE)
 p3 <- DimPlot(seurat, group.by = c("sex"), label = FALSE, raster = FALSE)
 p4 <- DimPlot(seurat, group.by = c("RNA_snn_res.1"), label = TRUE, raster = FALSE)
 
-png(filename = paste0(output_dir,"tcell_overview_umaps.png"), width =720, height = 720, unit = "px")
-(p1 + p2)/(p3 + p4)
+png(filename = paste0(output_dir, "tcell_overview_umaps.png"), width = 720, height = 720, unit = "px")
+(p1 + p2) / (p3 + p4)
 dev.off()
 
 
 p1 <- FeaturePlot(seurat, min.cutoff = "q1", max.cutoff = "q99", features = c("CD4", "CD8A", "CD8B"))
-png(filename = paste0(output_dir,"tcell_cd_markers.png"), width =720, height = 720, unit = "px")
+png(filename = paste0(output_dir, "tcell_cd_markers.png"), width = 720, height = 720, unit = "px")
 p1
 dev.off()
 
@@ -224,11 +225,12 @@ dev.off()
 
 ## Azimuth umap -----------------
 seurat$annotation_level2[is.na(seurat$annotation_level2)] <- "Other"
-p1 <- DimPlot(seurat, 
-              group.by = c("azimuth_celltype_1", "azimuth_celltype_2", "annotation_level2"), 
-              label = FALSE, raster = FALSE)
+p1 <- DimPlot(seurat,
+  group.by = c("azimuth_celltype_1", "azimuth_celltype_2", "annotation_level2"),
+  label = FALSE, raster = FALSE
+)
 
-png(filename = paste0(output_dir,"azimuth_umaps.png"), width =840, height = 360, unit = "px")
+png(filename = paste0(output_dir, "azimuth_umaps.png"), width = 840, height = 360, unit = "px")
 p1
 dev.off()
 
@@ -240,7 +242,7 @@ p1 <- ggplot(seurat@meta.data, aes(x = donor_id, fill = annotation_level2)) +
   theme_prism() +
   theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1))
 
-png(filename = paste0(output_dir,"azimuth_cell_prop.png"), width =540, height = 360, unit = "px")
+png(filename = paste0(output_dir, "azimuth_cell_prop.png"), width = 540, height = 360, unit = "px")
 p1
 dev.off()
 
@@ -254,7 +256,7 @@ p1 <- DimPlot(cd8, group.by = c("patient_group"), label = FALSE, cols = colors) 
 p2 <- DimPlot(cd8, group.by = c("annotation_level3"), label = TRUE) +
   ggtitle("CD8+ T-cell sub-clustering")
 
-png(filename = paste0(output_dir,"cd8_umaps.png"), width =720, height = 360, unit = "px")
+png(filename = paste0(output_dir, "cd8_umaps.png"), width = 720, height = 360, unit = "px")
 (p1 + p2)
 dev.off()
 
@@ -265,7 +267,7 @@ p1 <- ggplot(cd8@meta.data, aes(x = donor_id, fill = annotation_level3)) +
   theme_prism() +
   theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1))
 
-png(filename = paste0(output_dir,"cd8_cell_prop.png"), width =540, height = 360, unit = "px")
+png(filename = paste0(output_dir, "cd8_cell_prop.png"), width = 540, height = 360, unit = "px")
 p1
 dev.off()
 
@@ -280,7 +282,7 @@ p1 <- ggplot(cd8_prop, aes(x = Var2, y = Freq, fill = Var1)) +
   ylab("Cell proportion") +
   xlab("CD8 cell subtype")
 
-png(filename = paste0(output_dir,"cd8_cell_prop_by_celltype.png"), width =540, height = 360, unit = "px")
+png(filename = paste0(output_dir, "cd8_cell_prop_by_celltype.png"), width = 540, height = 360, unit = "px")
 p1
 dev.off()
 
@@ -290,7 +292,7 @@ p1 <- DimPlot(cd4, group.by = c("patient_group"), label = FALSE, cols = colors) 
 p2 <- DimPlot(cd4, group.by = c("annotation_level3"), label = TRUE) +
   ggtitle("CD4+ T-cell sub-clustering")
 
-png(filename = paste0(output_dir,"cd4_umaps.png"), width =720, height = 360, unit = "px")
+png(filename = paste0(output_dir, "cd4_umaps.png"), width = 720, height = 360, unit = "px")
 (p1 + p2)
 dev.off()
 
@@ -302,7 +304,7 @@ p1 <- ggplot(cd4@meta.data, aes(x = donor_id, fill = annotation_level3)) +
   theme(axis.text.x = element_text(color = axis_colors, angle = 90, vjust = 0.5, hjust = 1)) +
   ylab("Cell Proportions")
 
-png(filename = paste0(output_dir,"cd4_cell_prop.png"), width =540, height = 360, unit = "px")
+png(filename = paste0(output_dir, "cd4_cell_prop.png"), width = 540, height = 360, unit = "px")
 p1
 dev.off()
 
@@ -317,7 +319,7 @@ p1 <- ggplot(cd4_prop, aes(x = Var2, y = Freq, fill = Var1)) +
   ylab("Cell Proportions") +
   xlab("CD4 cell subtype")
 
-png(filename = paste0(output_dir,"cd4_cell_prop_by_celltype.png"), width =540, height = 360, unit = "px")
+png(filename = paste0(output_dir, "cd4_cell_prop_by_celltype.png"), width = 540, height = 360, unit = "px")
 p1
 dev.off()
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -337,12 +339,12 @@ checkpoint_genes <- c("CTLA4", "PDCD1", "HAVCR2", "LAG3", "TIGIT", "CD38")
 #         features = checkpoint_genes, pt.size = 0,
 #         group.by = "patient_group", adjust = 2,
 #         stack = TRUE, flip = TRUE
-# ) 
+# )
 
 p1 <- VlnPlot(cd8_plot,
   features = checkpoint_genes, pt.size = 0,
   group.by = "patient_group", cols = colors, adjust = 2
-) 
+)
 title1 <- ggdraw() + draw_label("CD8+ Gene expression", fontface = "bold")
 # plot_grid(title, p1, ncol = 1, rel_heights = c(0.1,1))
 
@@ -352,8 +354,8 @@ p2 <- VlnPlot(cd4_plot,
 )
 title2 <- ggdraw() + draw_label("CD4+ Gene expression", fontface = "bold")
 
-png(filename = paste0(output_dir,"checkpoint_gene_exp_group.png"), width =540, height = 720, unit = "px")
-plot_grid(title1, p1, title2, p2, ncol = 1, rel_heights = c(0.1,1,0.1,1))
+png(filename = paste0(output_dir, "checkpoint_gene_exp_group.png"), width = 540, height = 720, unit = "px")
+plot_grid(title1, p1, title2, p2, ncol = 1, rel_heights = c(0.1, 1, 0.1, 1))
 dev.off()
 # VlnPlot(cd8_plot, features = checkpoint_genes, pt.size = 0,
 #         group.by = "annotation_level3")
@@ -374,7 +376,7 @@ p2 <- VlnPlot(cd4_plot,
   stack = TRUE, flip = TRUE, cols = colors
 ) + ggtitle("CD4+ Gene expression")
 
-png(filename = paste0(output_dir,"checkpoint_gene_exp_celltype.png"), width =840, height = 420, unit = "px")
+png(filename = paste0(output_dir, "checkpoint_gene_exp_celltype.png"), width = 840, height = 420, unit = "px")
 (p1 + p2)
 dev.off()
 
@@ -387,8 +389,8 @@ title1 <- ggdraw() + draw_label("CD8+ Gene expression", fontface = "bold")
 p2 <- plot_density(cd4_plot, features = checkpoint_genes, reduction = "umap")
 title2 <- ggdraw() + draw_label("CD4+ Gene expression", fontface = "bold")
 
-png(filename = paste0(output_dir,"checkpoint_gene_exp_densityplot.png"), width =540, height = 720, unit = "px")
-plot_grid(title1, p1, title2, p2, ncol = 1, rel_heights = c(0.1,1,0.1,1))
+png(filename = paste0(output_dir, "checkpoint_gene_exp_densityplot.png"), width = 540, height = 720, unit = "px")
+plot_grid(title1, p1, title2, p2, ncol = 1, rel_heights = c(0.1, 1, 0.1, 1))
 dev.off()
 ## pseudobulk prep ----------------------
 
@@ -424,7 +426,7 @@ p1 <- ggplot(de_merge, aes(x = avg_log2FC.CD4, y = avg_log2FC.CD8)) +
   xlab("CD4+ log2FC") +
   ylab("CD8+ log2FC")
 
-png(filename = paste0(output_dir,"de_comparison.png"), width =540, height = 540, unit = "px")
+png(filename = paste0(output_dir, "de_comparison.png"), width = 540, height = 540, unit = "px")
 p1
 dev.off()
 
@@ -534,7 +536,7 @@ p3 <- ggplot(expansion_ratio, aes(x = patient_group, y = ratio, fill = celltype)
   xlab("") +
   ggtitle("Ratio of Expanded Clones")
 
-png(filename = paste0(output_dir,"tcr_stats.png"), width = 720, height = 420, unit = "px")
+png(filename = paste0(output_dir, "tcr_stats.png"), width = 720, height = 420, unit = "px")
 p1 + p2 + p3
 dev.off()
 
@@ -556,8 +558,8 @@ p2 <- ggplot(cd4_expanded, aes(x = celltype, y = expanded_unique, fill = patient
   scale_fill_manual(values = colors) +
   ggtitle("CD4+ unique clones per celltype")
 
-png(filename = paste0(output_dir,"celltype_tcr_stats.png"), width = 720, height = 720, unit = "px")
-p1/p2
+png(filename = paste0(output_dir, "celltype_tcr_stats.png"), width = 720, height = 720, unit = "px")
+p1 / p2
 dev.off()
 
 ## circle plot ---------------------
@@ -566,7 +568,7 @@ grid.cols <- hue_pal()(length(unique(cd8_merge$annotation_level3)))
 names(grid.cols) <- unique(cd8_merge$annotation_level3)
 
 # Graphing the chord diagram
-png(filename = paste0(output_dir,"chord_diagram.png"), width = 360, height = 360, unit = "px")
+png(filename = paste0(output_dir, "chord_diagram.png"), width = 360, height = 360, unit = "px")
 chordDiagram(circles, self.link = 1, grid.col = grid.cols)
 dev.off()
 
@@ -575,7 +577,7 @@ clonalDiversity(cd8_split_tcr, cloneCall = "aa", group.by = "patient_group")
 p1 <- clonalOverlap(cd8_split_tcr, cloneCall = "aa", group.by = "annotation_level3", method = "raw") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 
-png(filename = paste0(output_dir,"clonal_overlap.png"), width = 540, height = 540, unit = "px")
+png(filename = paste0(output_dir, "clonal_overlap.png"), width = 540, height = 540, unit = "px")
 p1
 dev.off()
 
@@ -598,7 +600,7 @@ names(cells_list) <- names(top_aa)[1:20]
 p1 <- DimPlot(cd8_merge,
   cells.highlight = cells_list, cols.highlight = hue_pal()(length(cells_list)),
   raster = FALSE, sizes.highlight = 3
-  ) +
+) +
   theme(
     legend.position = "bottom",
     legend.text = element_text(size = 9),
@@ -610,7 +612,6 @@ p1 <- DimPlot(cd8_merge,
   ) +
   guides(color = guide_legend(nrow = 7))
 
-png(filename = paste0(output_dir,"top20_clonotype.png"), width = 720, height = 540, unit = "px")
+png(filename = paste0(output_dir, "top20_clonotype.png"), width = 720, height = 540, unit = "px")
 p1
 dev.off()
-
