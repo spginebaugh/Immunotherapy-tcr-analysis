@@ -86,8 +86,6 @@ We can see from density plots that colitis-enriched celltypes are sources of exp
 
 However, in a pseudobulk comparison of colitis vs non-colitis + control samples, we see that CTLA4, HAVCR2, LAG3, and CD38 are significantly upregulated in colitis CD8+ T-cells, but only HAVCR2 and CD38 are upregulated in colitis CD4+ T-cells.
 
---------------add tables --------------------------
-
 Our pseudobulk analysis also reveals that the colitis results in similar changes in gene expression between CD4+ and CD8+ T-cells.
 
 ![foldchange cor](output_figures/de_comparison.png)
