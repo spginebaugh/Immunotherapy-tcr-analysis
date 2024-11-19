@@ -35,6 +35,8 @@ source("code/utils/TCR_utils.R")
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #                                  Functions                               ----
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#' Preps seurat objects for this particular dataset
+#' sets the correct ordering for patient_group and donor_id so figures are consistent
 prep_data <- function(seurat_obj) {
   seurat_obj <- add_contig_barcodes(seurat_obj)
   seurat_obj$patient_group <- factor(seurat_obj$patient_group,
@@ -56,7 +58,8 @@ prep_data <- function(seurat_obj) {
 }
 
 
-
+#' creates a vector of colors using meta_data dataframe
+#' enables consistent coloring even is different DFs have a subset of donors
 get_donor_colors <- function(meta_data) {
   axis_colors <- sapply(levels(meta_data$donor_id), function(x) {
     if (grepl("^CT", x)) {
@@ -70,7 +73,7 @@ get_donor_colors <- function(meta_data) {
   return(axis_colors)
 }
 
-
+#' creates pseudobulk dataset and performs DE between colitis and non-colitis groups
 colitis_pseudobulk <- function(seurat_obj) {
   pb_dat <- AggregateExpression(seurat_obj, assay = "RNA", return.seurat = TRUE, group.by = "donor_id")
   pb_dat$patient_group <- sapply(pb_dat$donor_id, function(x) {
@@ -93,7 +96,9 @@ colitis_pseudobulk <- function(seurat_obj) {
 }
 
 
-
+#' breaks up patient_celltype into sample and celltype
+#' makes it easier to run long pipes, since extra columns don't have
+#'   to be carried through the pipe
 add_summary_metadata <- function(metadata) {
   metadata$sample <- word(metadata$patient_celltype, 1, 1, "_")
   metadata$celltype <- word(metadata$patient_celltype, 2, -1, "_")
@@ -110,7 +115,7 @@ add_summary_metadata <- function(metadata) {
 }
 
 
-
+#' creates proper ordering of factors for consistent figures
 get_patient_group_factor <- function(patient_group) {
   patient_group <- factor(patient_group, levels = c("Control", "CPI no colitis", "CPI colitis"), ordered = FALSE)
   return(patient_group)
